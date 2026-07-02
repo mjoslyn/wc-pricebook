@@ -3,7 +3,7 @@
 **Role-based pricing and catalog visibility for WooCommerce — driven by configuration, not code.**
 
 WC Pricebook lets a store show different prices, and a different catalog, to different
-customers: dealer tiers, operator/wholesale pricing, quantity breaks, per‑customer
+customers: reseller tiers, distributor pricing, quantity breaks, per‑customer
 negotiated prices, "Call for Price" gating, and per‑role/per‑user catalog visibility.
 Everything is defined in a settings UI (and mirrored by filters), so the common cases
 need **no custom code**.
@@ -46,10 +46,11 @@ store's existing user roles instead of forcing new ones.
 
 ## Features
 
-- **Configurable price tiers** — dealer, dealer‑4/8/12/15%, operator, parts, wholesale…
-  each tier maps to a WordPress **role/capability** you already use.
+- **Configurable price tiers** — reseller, distributor, graduated volume tiers
+  (Silver / Gold / Platinum)… each tier maps to a WordPress **role/capability** you
+  already use.
 - **Override semantics per tier** — *lowest‑wins*, *override when the tier has its own
-  price* (operator‑style), or *always override in a category scope* (parts‑style).
+  price* (distributor‑style), or *always override in a category scope*.
 - **Visibility roles** — hide products from the catalog **or** show "Call for Price",
   for an audience matched by **roles and/or specific users** (ANY/ALL), scoped to
   categories.
@@ -82,8 +83,8 @@ A tier is a small record edited in **WooCommerce → Pricebook → Tiers**:
 | **Price override** | *Competes on price* · *Overrides when this tier has its own price* · *Always overrides (in its category scope)*. |
 | **Categories** | The products this tier prices (All / Only selected / All except selected). |
 
-Membership is **role‑based**: a user is in tier `dealer_4` because they hold a WP role
-granting the `dealer_4` capability. The plugin never creates, deletes, or assigns
+Membership is **role‑based**: a user is in tier `gold` because they hold a WP role
+granting the `gold` capability. The plugin never creates, deletes, or assigns
 roles — that stays with the store (or a role manager).
 
 ### Price resolution order
@@ -136,7 +137,7 @@ Named product behaviors, triggered by a **per‑product checkbox**, a **taxonomy
 or the `wc_pricebook_rules` filter:
 
 - **`skip_matrix`** — ignore tier pricing; everyone sees MSRP.
-- **`no_tier_discount`** — discount tiers collapse to the plain base (dealer) price.
+- **`no_tier_discount`** — discount tiers collapse to the plain base (reseller) price.
 - **`force_visible`** — a product‑level "always show the price" flag.
 - **`call_for_price`** — force the price empty ("Call for Price") for everyone.
 
@@ -152,7 +153,7 @@ Composer's autoloader only if `vendor/` exists. `composer install` is for dev to
 
 ## Quick start
 
-1. **Create the WP roles** you price against (e.g. `dealer`, `operator`) with a member
+1. **Create the WP roles** you price against (e.g. `reseller`, `distributor`) with a member
    plugin or code — the plugin reads them, it doesn't create them. Each tier's **Role
    slug** is shown in the tier editor.
 2. **Add tiers** in *Pricebook → Tiers* (role, categories, override, fallback).

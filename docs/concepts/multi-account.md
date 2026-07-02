@@ -1,6 +1,6 @@
 # Multi-account / sub-accounts
 
-Many B2B stores let a dealer have multiple logins (a primary account plus staff
+Many B2B stores let a business account have multiple logins (a primary account plus staff
 sub-accounts) that should all be priced the same. WC Pricebook supports this with a
 single resolution point.
 

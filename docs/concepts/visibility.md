@@ -28,10 +28,11 @@ The same category-set control as tiers: All / Only selected / All except selecte
 
 ## Example: "price requires a tier"
 
-> **Audience:** MSRP Customer · **Categories:** Parts · **Hide:** Hide Pricing
+> **Audience:** MSRP Customer · **Categories:** Special Order · **Hide:** Hide Pricing
 
-Retail/no-tier shoppers see *Call for Price* on Parts; anyone holding a pricing tier
-sees their price. This single builder replaces a dedicated "price requires tier" rule.
+Retail/no-tier shoppers see *Call for Price* on Special Order items; anyone holding a
+pricing tier sees their price. This single builder replaces a dedicated "price requires
+tier" rule.
 
 ## Per-user targeting and multi-account
 

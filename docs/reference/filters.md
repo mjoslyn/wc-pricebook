@@ -34,10 +34,10 @@ Point the plugin at a store's existing meta instead of its defaults:
 ## Example
 
 ```php
-// Treat a custom capability as the "operator" tier.
+// Treat a custom capability as the "distributor" tier.
 add_filter( 'wc_pricebook_user_tier', function ( $has, $user_id, $tier_key ) {
-    if ( 'operator' === $tier_key ) {
-        return user_can( $user_id, 'wholesale_customer' );
+    if ( 'distributor' === $tier_key ) {
+        return user_can( $user_id, 'b2b_customer' );
     }
     return $has;
 }, 10, 3 );

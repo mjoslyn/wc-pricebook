@@ -2,7 +2,7 @@
 
 WC Pricebook is a WooCommerce plugin for **role-based pricing and catalog visibility**.
 It lets a store show different prices — and a different catalog — to different customers:
-dealer tiers, operator/wholesale pricing, quantity breaks, per-customer negotiated
+reseller tiers, distributor pricing, quantity breaks, per-customer negotiated
 prices, "Call for Price" gating, and per-role/per-user catalog visibility.
 
 ## The core idea: the model is data

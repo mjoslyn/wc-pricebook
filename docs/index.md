@@ -15,7 +15,7 @@ hero:
 
 features:
   - title: Configurable tiers
-    details: Dealer, operator, wholesale, parts… each tier maps to a WordPress role you already use, with lowest-wins / when-priced / always-override semantics.
+    details: Reseller, distributor, graduated volume tiers… each tier maps to a WordPress role you already use, with lowest-wins / when-priced / always-override semantics.
   - title: Visibility roles
     details: Hide products or show "Call for Price" for an audience matched by roles and/or specific users, scoped to categories.
   - title: Per-product overrides

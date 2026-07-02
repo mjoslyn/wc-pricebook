@@ -14,7 +14,7 @@ A **tier** is a small record edited in **WooCommerce → Pricebook → Tiers**.
 
 ## Membership is role-based
 
-A user belongs to tier `dealer_4` because they hold a WP role granting the `dealer_4`
+A user belongs to tier `gold` because they hold a WP role granting the `gold`
 capability. The plugin **never creates, deletes, or assigns roles** — that stays with
 the store (or a role manager). Override the mapping with the `wc_pricebook_user_tier`
 filter if you need something other than a same-named capability.
@@ -27,9 +27,9 @@ competes:
 - **Competes on price** *(lowest wins)* — the tier's price is a candidate; the lowest
   candidate wins.
 - **Overrides when this tier has its own price** *(`when_priced`)* — if the tier has an
-  explicit price for the product, it takes over (operator-style).
+  explicit price for the product, it takes over (distributor-style).
 - **Always overrides (in its category scope)** *(`always`)* — inside its categories, the
-  tier wins outright (parts-style, or "this dealer pays MSRP on category X").
+  tier wins outright (category-scoped, e.g. "this account pays MSRP on category X").
 
 Precedence when several apply: **`always` › `when_priced` › lowest candidate.** A tier
 that is out of its category scope is inert — it contributes nothing.

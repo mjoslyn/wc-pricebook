@@ -12,7 +12,7 @@
 | Rule | Effect |
 |---|---|
 | **`skip_matrix`** | Ignore tier pricing for the product — every customer sees MSRP. |
-| **`no_tier_discount`** | Discount tiers (dealer-4/8/12/15…) collapse to the plain base (dealer) price. |
+| **`no_tier_discount`** | Discount tiers (Silver/Gold/Platinum…) collapse to the plain base (reseller) price. |
 | **`force_visible`** | Product-level "always show the price" flag. |
 | **`call_for_price`** | Force the price empty ("Call for Price") for everyone. |
 

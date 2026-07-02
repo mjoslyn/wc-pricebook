@@ -1,18 +1,18 @@
 # Quick start
 
-A minimal dealer-pricing setup, end to end.
+A minimal reseller-pricing setup, end to end.
 
 ## 1. Create the roles you price against
 
 WC Pricebook **reads** roles, it never creates them. Use a role manager (or code) to
-create e.g. `dealer` and `operator`. Each tier's **Role slug** is shown in the tier
-editor so you can match them up.
+create e.g. `reseller` and `distributor`. Each tier's **Role slug** is shown in the
+tier editor so you can match them up.
 
 ## 2. Add tiers
 
 In **WooCommerce → Pricebook → Tiers**, add a tier per role:
 
-- **Role** — the WP role/capability (e.g. `dealer`).
+- **Role** — the WP role/capability (e.g. `reseller`).
 - **Categories** — which products this tier prices.
 - **Price override** — how it competes with other tiers a customer holds.
 - **Fallback to** — MSRP or another tier when nothing else resolves.
@@ -27,10 +27,10 @@ meta key.
 
 In **Pricebook → Visibility roles**, add a role such as:
 
-> **Audience:** MSRP Customer · **Categories:** *Parts* · **Hide:** Hide Pricing
+> **Audience:** MSRP Customer · **Categories:** *Special Order* · **Hide:** Hide Pricing
 
-That means "retail / no-tier customers see *Call for Price* on Parts" — i.e. the price
-requires a tier.
+That means "retail / no-tier customers see *Call for Price* on Special Order items" —
+i.e. the price requires a tier.
 
 ## 5. Preview
 
