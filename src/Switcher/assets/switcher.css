@@ -1,0 +1,129 @@
+#wp-admin-bar-wc-pricebook-switcher .ab-icon:before {
+	content: "\f526";
+	top: 2px;
+}
+
+#wp-admin-bar-wc-pricebook-switcher .ab-item {
+	cursor: pointer;
+}
+
+#wp-admin-bar-wc-pricebook-switcher .ab-submenu {
+	min-width: 200px;
+}
+
+.wc-pricebook-role-item {
+	cursor: pointer;
+}
+
+.wc-pricebook-role-item.current-role {
+	font-weight: 600;
+}
+
+.wc-pricebook-role-item .wc-pricebook-qty-note {
+	opacity: 0.7;
+	font-size: 11px;
+	font-style: italic;
+}
+
+.wc-pricebook-user-switch-trigger {
+	cursor: pointer;
+}
+
+/* "Preview as customer" modal. */
+.wc-pricebook-modal-overlay {
+	display: none;
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.6);
+	z-index: 100000;
+	align-items: flex-start;
+	justify-content: center;
+}
+
+.wc-pricebook-modal-overlay.is-open {
+	display: flex;
+}
+
+.wc-pricebook-modal {
+	box-sizing: border-box;
+	width: 440px;
+	max-width: calc(100vw - 40px);
+	margin-top: 12vh;
+	padding: 20px;
+	background: #fff;
+	color: #1d2327;
+	border-radius: 6px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.wc-pricebook-modal__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.wc-pricebook-modal__title {
+	margin: 0;
+	font-size: 16px;
+}
+
+.wc-pricebook-modal__close {
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: 24px;
+	line-height: 1;
+	color: #646970;
+	cursor: pointer;
+}
+
+.wc-pricebook-modal__current {
+	margin: 0 0 12px;
+	color: #50575e;
+}
+
+.wc-pricebook-modal__clear {
+	color: #b32d2e;
+	text-decoration: underline;
+}
+
+.wc-pricebook-modal__search {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 8px 10px;
+	font-size: 14px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+}
+
+.wc-pricebook-modal__results {
+	list-style: none;
+	margin: 10px 0 0;
+	padding: 0;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.wc-pricebook-modal__result {
+	padding: 8px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.wc-pricebook-modal__result:hover {
+	background: #f0f6fc;
+}
+
+.wc-pricebook-modal__empty {
+	padding: 8px 10px;
+	color: #646970;
+	font-style: italic;
+}
+
+#wp-admin-bar-wc-pricebook-switcher.loading .ab-item {
+	opacity: 0.6;
+	pointer-events: none;
+}

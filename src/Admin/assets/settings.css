@@ -1,0 +1,173 @@
+/* Pricebook settings repeater UI. */
+
+.wc-pricebook-repeater {
+	margin: 0 0 1.5em;
+}
+
+.wc-pricebook-repeater__list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.wc-pricebook-repeater__item {
+	position: relative;
+	padding: 16px 44px 8px 16px;
+	border: 1px solid #c3c4c7;
+	border-left: 4px solid #2271b1;
+	background: #fff;
+	border-radius: 4px;
+}
+
+.wc-pricebook-repeater__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(220px, 1fr));
+	gap: 12px 24px;
+}
+
+.wc-pricebook-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wc-pricebook-field label {
+	font-weight: 600;
+}
+
+.wc-pricebook-field--full {
+	grid-column: 1 / -1;
+}
+
+.wc-pricebook-field input,
+.wc-pricebook-field select {
+	width: 100%;
+}
+
+/* Product Data panel: role/price rows using native .form-field styling. */
+.wc-pricebook-role-row {
+	position: relative;
+	padding: 6px 0 2px;
+	border-top: 1px solid #eee;
+}
+
+.wc-pricebook-role-row:first-child {
+	border-top: 0;
+}
+
+.wc-pricebook-role-row__remove {
+	color: #b32d2e;
+	text-decoration: none;
+}
+
+.wc-pricebook-role-row__remove:hover {
+	color: #8a2424;
+}
+
+.wc-pricebook-field .description {
+	margin: 0;
+	font-size: 12px;
+}
+
+.wc-pricebook-tier-categories {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(220px, 1fr));
+	gap: 16px 24px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid #f0f0f1;
+}
+
+.wc-pricebook-catset {
+	margin: 0;
+	padding: 8px 0 0;
+	border: 0;
+}
+
+.wc-pricebook-catset legend {
+	font-weight: 600;
+	padding: 0;
+}
+
+.wc-pricebook-catset__modes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	margin: 6px 0;
+}
+
+.wc-pricebook-catset__list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: 160px;
+	overflow-y: auto;
+	padding: 8px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.wc-pricebook-repeater__remove {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	color: #b32d2e;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.wc-pricebook-repeater__remove:hover {
+	color: #8a2424;
+}
+
+.wc-pricebook-repeater__add {
+	margin-top: 12px;
+}
+
+/* Catalog/product-page bulk (quantity-break) pricing table. */
+.pricebook-bulk-table {
+	width: auto;
+	margin: 1em 0;
+	border-collapse: collapse;
+}
+
+.pricebook-bulk-table th,
+.pricebook-bulk-table td {
+	padding: 4px 12px;
+	border: 1px solid #dcdcde;
+	text-align: left;
+}
+
+.pricebook-bulk-table th {
+	font-weight: 600;
+}
+
+/* User-profile Category Pricing Roles repeater. */
+.wc-pricebook-catrole-row {
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin-bottom: 10px;
+	background: #fff;
+	max-width: 40em;
+}
+
+.wc-pricebook-catrole-row .form-field {
+	margin: 0 0 10px;
+}
+
+.wc-pricebook-catrole-row .form-field:last-child {
+	margin-bottom: 0;
+}
+
+.wc-pricebook-catrole-row label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.wc-pricebook-role-row__remove {
+	color: #b32d2e;
+	text-decoration: none;
+}

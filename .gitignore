@@ -1,0 +1,18 @@
+/vendor/
+/node_modules/
+/.wp-env/
+*.log
+.DS_Store
+.phpunit.result.cache
+
+# Internal Claude Code guidance — not published
+/CLAUDE.md
+
+/node_modules/
+/e2e/.auth/
+/test-results/
+/playwright-report/
+
+# VitePress docs build output & cache
+/docs/.vitepress/dist/
+/docs/.vitepress/cache/

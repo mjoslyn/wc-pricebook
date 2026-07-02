@@ -1,0 +1,9 @@
+# Netlify configuration for the VitePress docs site.
+# Served at the domain root, so no DOCS_BASE is set (base stays "/").
+
+[build]
+  command = "npm install && npm run docs:build"
+  publish = "docs/.vitepress/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
