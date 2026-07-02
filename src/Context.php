@@ -383,25 +383,27 @@ class Context {
 	const FORCE_PRICE_USERS_META   = '_wc_pricebook_force_price_users';
 
 	/**
-	 * Whether a user matches ANY of a set of role slugs (the synthetic MSRP_CUSTOMER
-	 * matches users with no pricing tier). Empty set matches nobody.
+	 * Whether a user matches ANY of a set of role slugs — the same capability check tier
+	 * membership uses ({@see self::user_has_tier}). A slug matches when
+	 * `user_can( $user, $slug )` is true, which by default covers both a role named the
+	 * slug (WordPress exposes each role as a same-named capability) and any role that
+	 * grants a capability of that name. The synthetic MSRP_CUSTOMER matches users with no
+	 * pricing tier. Empty set matches nobody.
 	 *
 	 * @param int               $user_id User ID.
-	 * @param array<int,string> $slugs   Role slugs.
+	 * @param array<int,string> $slugs   Role/capability slugs.
 	 * @return bool
 	 */
 	public function user_in_role_set( $user_id, array $slugs ) {
 		if ( empty( $slugs ) ) {
 			return false;
 		}
-		$user       = $user_id ? get_userdata( $user_id ) : false;
-		$user_roles = ( $user && is_array( $user->roles ) ) ? $user->roles : array();
 		foreach ( $slugs as $slug ) {
 			if ( self::MSRP_CUSTOMER === $slug ) {
 				if ( ! $this->user_has_any_tier( $user_id ) ) {
 					return true;
 				}
-			} elseif ( in_array( $slug, $user_roles, true ) ) {
+			} elseif ( '' !== (string) $slug && user_can( $user_id, $slug ) ) {
 				return true;
 			}
 		}

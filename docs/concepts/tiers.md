@@ -12,12 +12,19 @@ A **tier** is a small record edited in **WooCommerce → Pricebook → Tiers**.
 | **Categories** | The products this tier prices: All / Only selected / All except selected. |
 | **Notes** | Free-form documentation for the tier. |
 
-## Membership is role-based
+## Membership is a capability check
 
-A user belongs to tier `gold` because they hold a WP role granting the `gold`
-capability. The plugin **never creates, deletes, or assigns roles** — that stays with
-the store (or a role manager). Override the mapping with the `wc_pricebook_user_tier`
-filter if you need something other than a same-named capability.
+A user belongs to tier `gold` when `user_can( $user, 'gold' )` is true. By default that
+matches a **role named `gold`** — WordPress exposes every role as a same-named
+capability — but it also matches any role that **grants** a `gold` capability, so you can
+name roles however you like.
+
+The **same capability check** is used everywhere a role is targeted — [visibility
+roles](./visibility), per-product [force overrides](./force-overrides), and bulk
+pricing — so "target `gold`" means the same thing throughout.
+
+The plugin **never creates, deletes, or assigns roles** — that stays with the store (or a
+role manager). Override membership entirely with the `wc_pricebook_user_tier` filter.
 
 ## Override semantics
 

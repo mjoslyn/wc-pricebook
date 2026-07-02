@@ -252,6 +252,18 @@ class ContextTest extends TestCase {
 		$this->assertSame( array(), $this->context->visibility_role_categories( 6 )['exclude'] );
 	}
 
+	public function test_role_targeting_is_capability_based() {
+		// Role targeting (visibility roles, force overrides, bulk pricing) uses the same
+		// capability check as tier membership: user_can($user, $slug). A capability
+		// granted by a differently-named role matches, and so does the role name itself.
+		Store::add_user( 9, array( 'vip' ), array( 'gold' ) ); // 'vip' role grants the 'gold' cap.
+
+		$this->assertTrue( $this->context->user_in_role_set( 9, array( 'gold' ) ) );   // by capability
+		$this->assertTrue( $this->context->user_in_role_set( 9, array( 'vip' ) ) );    // by role name
+		$this->assertTrue( $this->context->user_has_tier( 9, 'gold' ) );               // tiers agree
+		$this->assertFalse( $this->context->user_in_role_set( 9, array( 'silver' ) ) );
+	}
+
 	public function test_visibility_role_matches_specific_user() {
 		// A visibility role can target specific users (no roles configured) — only those
 		// users are matched.
