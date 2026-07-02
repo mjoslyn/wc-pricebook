@@ -12,6 +12,9 @@
  * Requires PHP:      7.4
  * Requires at least: 6.0
  * WC requires at least: 7.0
+ * Update URI:        https://github.com/mjoslyn/wc-pricebook
+ * GitHub Plugin URI: mjoslyn/wc-pricebook
+ * Primary Branch:    main
  *
  * @package WCPricebook
  */

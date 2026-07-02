@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build plugin zip
+        # git archive honors the export-ignore rules in .gitattributes, so the zip
+        # contains only runtime files and unzips to a wc-pricebook/ folder.
+        run: git archive --format=zip --prefix=wc-pricebook/ -o "wc-pricebook-${GITHUB_REF_NAME}.zip" HEAD
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: wc-pricebook-*.zip
+          generate_release_notes: true
