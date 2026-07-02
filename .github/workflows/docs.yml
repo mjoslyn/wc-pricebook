@@ -50,8 +50,3 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          # GitHub Pages' deployment queue can lag well past the 10-minute default;
-          # wait up to 30 minutes before failing so a slow-but-healthy deploy finishes.
-          timeout: 1800000
-          error_count: 15
