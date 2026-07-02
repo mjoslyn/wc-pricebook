@@ -128,8 +128,9 @@ Also on the product's **Pricebook** tab:
 
 - **Customer‑specific prices** — a negotiated `{ customer, price }` that wins over every
   tier for that customer.
-- **Quantity‑break (bulk) pricing** — per‑tier `{ min qty, price }` rows; the lowest
-  applicable price wins as quantities change in the cart.
+- **Quantity‑break (bulk) pricing** — `{ role, min qty, price }` rows targeting any
+  pricing tier, WP role, or MSRP Customer; the lowest applicable price for the roles a
+  customer holds wins as quantities change in the cart.
 
 ### Rules
 

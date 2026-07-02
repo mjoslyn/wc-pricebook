@@ -417,6 +417,43 @@ class ProductMeta {
 	 * @param string $price   Price value.
 	 * @return void
 	 */
+	/**
+	 * Options for a bulk-break row's target: configured pricing tiers (with their
+	 * labels) first, then the synthetic "MSRP Customer" and every registered WP role.
+	 * Any stored value not otherwise present is appended so an existing row never
+	 * silently changes on save.
+	 *
+	 * @param string $selected Currently stored value for the row.
+	 * @return array<string,string> value => label.
+	 */
+	private function bulk_target_options( $selected = '' ) {
+		$options = $this->tier_options();
+		foreach ( $this->role_options() as $key => $label ) {
+			if ( ! isset( $options[ $key ] ) ) {
+				$options[ $key ] = $label;
+			}
+		}
+		if ( '' !== (string) $selected && ! isset( $options[ (string) $selected ] ) ) {
+			$options[ (string) $selected ] = (string) $selected;
+		}
+		return $options;
+	}
+
+	/**
+	 * Whether a bulk-break target key is valid: a configured pricing tier, the synthetic
+	 * "MSRP Customer", or a registered WP role.
+	 *
+	 * @param string                             $key   Sanitized target key.
+	 * @param array<string,array<string,mixed>>  $tiers Configured tiers.
+	 * @return bool
+	 */
+	private function is_valid_bulk_target( $key, array $tiers ) {
+		if ( isset( $tiers[ $key ] ) || \WCPricebook\Context::MSRP_CUSTOMER === $key ) {
+			return true;
+		}
+		return function_exists( 'wp_roles' ) && wp_roles()->is_role( $key );
+	}
+
 	private function render_bulk_row( $index, $role, $min_qty, $max_qty, $price ) {
 		$base = 'pricebook_bulk_price[' . $index . ']';
 		?>
@@ -425,7 +462,7 @@ class ProductMeta {
 				<label><?php esc_html_e( 'Role', 'wc-pricebook' ); ?></label>
 				<select name="<?php echo esc_attr( $base . '[role]' ); ?>">
 					<option value=""><?php esc_html_e( '— Select —', 'wc-pricebook' ); ?></option>
-					<?php foreach ( $this->tier_options() as $key => $label ) : ?>
+					<?php foreach ( $this->bulk_target_options( $role ) as $key => $label ) : ?>
 						<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $key, $role ); ?>><?php echo esc_html( $label ); ?></option>
 					<?php endforeach; ?>
 				</select>
@@ -699,7 +736,7 @@ class ProductMeta {
 			$max   = isset( $row['max_qty'] ) ? absint( $row['max_qty'] ) : 0;
 			$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
 			// Drop incomplete rows and inverted ranges (a set max below the min).
-			if ( '' === $role || ! isset( $tiers[ $role ] ) || $qty < 1 || '' === $price ) {
+			if ( '' === $role || ! $this->is_valid_bulk_target( $role, $tiers ) || $qty < 1 || '' === $price ) {
 				continue;
 			}
 			if ( $max > 0 && $max < $qty ) {

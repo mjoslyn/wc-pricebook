@@ -306,6 +306,29 @@ class PriceEngineTest extends TestCase {
 		$this->assertSame( '62', (string) $this->engine->effective_price_qty( null, $product, 10 ) );
 	}
 
+	public function test_bulk_pricing_targets_a_wp_role_not_only_tiers() {
+		// A bulk break keyed by a plain WP role ('club') that is not a configured pricing
+		// tier applies to members of that role, and only to them.
+		$this->set_meta(
+			10,
+			array(
+				'_regular_price'          => '100',
+				'_pricebook_bulk_pricing' => array(
+					'club' => array( array( 'min_qty' => 5, 'price' => '80' ) ),
+				),
+			)
+		);
+		Store::add_user( 5, array( 'club' ) );     // in the role, no pricing tier.
+		Store::add_user( 6, array( 'customer' ) ); // not in the role.
+		$product = new FakeProduct( 10 );
+
+		// Member: below the break sees MSRP, at/above sees the role break.
+		$this->assertSame( '100', (string) $this->engine->effective_price_qty( null, $product, 1, 5 ) );
+		$this->assertSame( '80', (string) $this->engine->effective_price_qty( null, $product, 5, 5 ) );
+		// Non-member: never gets the role break.
+		$this->assertSame( '100', (string) $this->engine->effective_price_qty( null, $product, 5, 6 ) );
+	}
+
 	public function test_from_price_uses_lowest_break_across_roles() {
 		$this->set_meta(
 			10,

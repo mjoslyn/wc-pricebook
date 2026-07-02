@@ -519,7 +519,7 @@ class PriceEngine {
 			return $normal;
 		}
 
-		$keys = $this->resolved_tier_keys( $product->get_id(), $resolved_user, $explicit );
+		$keys = $this->bulk_matching_keys( $product->get_id(), $resolved_user, $explicit );
 
 		// Lowest bulk price across every role the user is priced under.
 		$bulk = '';
@@ -563,7 +563,7 @@ class PriceEngine {
 			return '';
 		}
 
-		$keys = $this->resolved_tier_keys( $product->get_id(), $resolved_user, $explicit );
+		$keys = $this->bulk_matching_keys( $product->get_id(), $resolved_user, $explicit );
 
 		$min = '';
 		foreach ( $keys as $key ) {
@@ -582,6 +582,44 @@ class PriceEngine {
 			return '';
 		}
 		return $min;
+	}
+
+	/**
+	 * The bulk-pricing meta keys whose quantity breaks apply to a user for a product.
+	 *
+	 * Bulk breaks can target any WP role or the synthetic "MSRP Customer", not only
+	 * configured pricing tiers. This returns the pricing tiers the user is priced under
+	 * (via {@see self::resolved_tier_keys}, preserving switcher/category-role behavior)
+	 * PLUS any other bulk-meta keys the user matches by role membership.
+	 *
+	 * @param int  $product_id Product ID.
+	 * @param int  $user_id    Resolved pricing user ID.
+	 * @param bool $explicit   Whether the user was passed explicitly (no switcher).
+	 * @return array<int,string> Role/tier keys.
+	 */
+	private function bulk_matching_keys( $product_id, $user_id, $explicit ) {
+		$keys = $this->resolved_tier_keys( $product_id, $user_id, $explicit );
+
+		// A manager previewing as a tier via the switcher sees only that tier's breaks.
+		if ( ! $explicit && $this->context->is_manager() ) {
+			$switcher = $this->context->switcher_role();
+			if ( '' !== $switcher && 'msrp' !== $switcher ) {
+				return $keys;
+			}
+		}
+
+		// Add any role-targeted breaks (WP roles / MSRP Customer) the user matches.
+		$meta_key = $this->config->bulk_pricing_meta();
+		$all      = '' !== $meta_key ? get_post_meta( $product_id, $meta_key, true ) : array();
+		if ( is_array( $all ) ) {
+			foreach ( array_keys( $all ) as $key ) {
+				$key = (string) $key;
+				if ( ! in_array( $key, $keys, true ) && $this->context->user_in_role_set( $user_id, array( $key ) ) ) {
+					$keys[] = $key;
+				}
+			}
+		}
+		return $keys;
 	}
 
 	/**
