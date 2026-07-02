@@ -284,6 +284,45 @@ class Flowchart {
 	}
 
 	/**
+	 * Display label for a role/tier key used in bulk or force targeting: the tier's
+	 * label, "MSRP Customer" for the synthetic key, the WP role name, or the raw slug.
+	 *
+	 * @param string $key Role/tier/MSRP-Customer key.
+	 * @return string
+	 */
+	private function role_label( $key ) {
+		if ( \WCPricebook\Context::MSRP_CUSTOMER === $key ) {
+			return __( 'MSRP Customer', 'wc-pricebook' );
+		}
+		$tiers = $this->config->tiers();
+		if ( isset( $tiers[ $key ]['label'] ) && '' !== (string) $tiers[ $key ]['label'] ) {
+			return (string) $tiers[ $key ]['label'];
+		}
+		if ( function_exists( 'wp_roles' ) ) {
+			$names = wp_roles()->get_names();
+			if ( isset( $names[ $key ] ) ) {
+				return (string) $names[ $key ];
+			}
+		}
+		return (string) $key;
+	}
+
+	/**
+	 * Format a list of user IDs as "login (#id)" labels for display.
+	 *
+	 * @param array<int,int> $ids User IDs.
+	 * @return array<int,string>
+	 */
+	private function user_labels( array $ids ) {
+		$out = array();
+		foreach ( $ids as $id ) {
+			$user  = get_userdata( (int) $id );
+			$out[] = $user ? sprintf( '%s (#%d)', $user->user_login, (int) $id ) : sprintf( '#%d', (int) $id );
+		}
+		return $out;
+	}
+
+	/**
 	 * Human-readable label + description for each named pricing rule, for the
 	 * "Pricing rules in effect" table. Unknown rule keys fall back to a
 	 * humanized version of the key with no description.
@@ -298,19 +337,15 @@ class Flowchart {
 			),
 			'no_tier_discount'  => array(
 				'label' => __( 'No tier discount', 'wc-pricebook' ),
-				'desc'  => __( 'Suppresses the dealer-percentage discount — discount tiers collapse to the plain dealer base price.', 'wc-pricebook' ),
+				'desc'  => __( 'Suppresses tier discounts — discount tiers collapse to the plain base price.', 'wc-pricebook' ),
 			),
 			'force_visible'     => array(
 				'label' => __( 'Force visible', 'wc-pricebook' ),
-				'desc'  => __( 'Keeps the product (and its price) visible even when a hidden-category rule would otherwise hide it.', 'wc-pricebook' ),
+				'desc'  => __( 'Keeps the product\'s price visible even when a Hide-Pricing visibility role would otherwise hide it.', 'wc-pricebook' ),
 			),
-			'price_requires_tier' => array(
-				'label' => __( 'Price requires tier', 'wc-pricebook' ),
-				'desc'  => __( 'Hides the price from customers who do not hold a pricing tier for this product.', 'wc-pricebook' ),
-			),
-			'hidden_categories' => array(
-				'label' => __( 'Hidden categories', 'wc-pricebook' ),
-				'desc'  => __( 'Hides the product from customers outside the roles allowed to see this category.', 'wc-pricebook' ),
+			'call_for_price'    => array(
+				'label' => __( 'Call for Price', 'wc-pricebook' ),
+				'desc'  => __( 'Forces the price empty ("Call for Price") for every customer on this product.', 'wc-pricebook' ),
 			),
 		);
 	}
@@ -467,6 +502,42 @@ class Flowchart {
 				<?php endif; ?>
 
 				<?php
+				$fv_roles = $this->context->product_force_visible_roles( $product_id );
+				$fp_roles = $this->context->product_force_price_roles( $product_id );
+				$fv_users = get_post_meta( $product_id, \WCPricebook\Context::FORCE_VISIBLE_USERS_META, true );
+				$fv_users = is_array( $fv_users ) ? $fv_users : array();
+				$fp_users = get_post_meta( $product_id, \WCPricebook\Context::FORCE_PRICE_USERS_META, true );
+				$fp_users = is_array( $fp_users ) ? $fp_users : array();
+				if ( $fv_roles || $fp_roles || $fv_users || $fp_users ) :
+					?>
+					<h3><?php esc_html_e( 'Force visibility overrides', 'wc-pricebook' ); ?></h3>
+					<p class="note"><?php esc_html_e( 'These roles/users always see the product, or its price, overriding any Hide visibility role.', 'wc-pricebook' ); ?></p>
+					<table>
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Override', 'wc-pricebook' ); ?></th>
+								<th><?php esc_html_e( 'Roles', 'wc-pricebook' ); ?></th>
+								<th><?php esc_html_e( 'Users', 'wc-pricebook' ); ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td><strong><?php esc_html_e( 'Force product visible', 'wc-pricebook' ); ?></strong></td>
+								<td class="note"><?php echo esc_html( $fv_roles ? implode( ', ', array_map( array( $this, 'role_label' ), $fv_roles ) ) : '—' ); ?></td>
+								<td class="note"><?php echo esc_html( $fv_users ? implode( ', ', $this->user_labels( $fv_users ) ) : '—' ); ?></td>
+							</tr>
+							<tr>
+								<td><strong><?php esc_html_e( 'Force price visible', 'wc-pricebook' ); ?></strong></td>
+								<td class="note"><?php echo esc_html( $fp_roles ? implode( ', ', array_map( array( $this, 'role_label' ), $fp_roles ) ) : '—' ); ?></td>
+								<td class="note"><?php echo esc_html( $fp_users ? implode( ', ', $this->user_labels( $fp_users ) ) : '—' ); ?></td>
+							</tr>
+						</tbody>
+					</table>
+					<?php
+				endif;
+				?>
+
+				<?php
 				if ( $as_user ) :
 					$base      = (float) get_post_meta( $product_id, $this->config->base_meta()['regular'], true );
 					$u_reg     = $this->engine->price_for_user( $base, $product, $user_id, false );
@@ -504,9 +575,11 @@ class Flowchart {
 							'allowed'        => __( 'the product is within this customer\'s allowed categories.', 'wc-pricebook' ),
 							'excluded'       => __( 'the product is in a category this customer is hidden from (Hide visibility).', 'wc-pricebook' ),
 							'not_in_include' => __( 'this customer only sees specific categories, and this product is not one of them.', 'wc-pricebook' ),
+							'forced_role'    => __( 'a per-product Force-product-visible override applies to this customer.', 'wc-pricebook' ),
 						);
 						$vis_text     = isset( $vis_messages[ $vis['reason'] ] ) ? $vis_messages[ $vis['reason'] ] : '';
 						$price_hidden = $this->context->price_hidden_by_visibility_role( $product_id, $priced_as );
+						$price_forced = $this->rules->applies( 'force_visible', $product_id ) || $this->context->user_force_price( $product_id, $priced_as );
 						?>
 						<?php if ( ! $vis['visible'] ) : ?>
 							<p class="note" style="margin:0 0 8px;padding:8px 10px;background:#fcf0f1;border:1px solid #f0c0c4;border-radius:4px;color:#b32d2e;font-weight:600;">
@@ -523,9 +596,13 @@ class Flowchart {
 								?>
 							</p>
 						<?php endif; ?>
-						<?php if ( $price_hidden && $vis['visible'] ) : ?>
+						<?php if ( $price_hidden && $vis['visible'] && ! $price_forced ) : ?>
 							<p class="note" style="margin:0 0 8px;padding:8px 10px;background:#fcf9e8;border:1px solid #e6d9a2;border-radius:4px;color:#8a6d00;font-weight:600;">
 								<?php esc_html_e( 'Price hidden for this customer (Call for Price) via a visibility role.', 'wc-pricebook' ); ?>
+							</p>
+						<?php elseif ( $price_hidden && $vis['visible'] && $price_forced ) : ?>
+							<p class="note" style="margin:0 0 8px;padding:8px 10px;background:#edf7ed;border:1px solid #b8dfb8;border-radius:4px;color:#00701a;font-weight:600;">
+								<?php esc_html_e( 'A visibility role would hide the price, but a Force-price-visible override shows it to this customer.', 'wc-pricebook' ); ?>
 							</p>
 						<?php endif; ?>
 						<p class="price">
@@ -616,6 +693,50 @@ class Flowchart {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+
+				<?php
+				// Bulk rows keyed by a role / MSRP Customer that is not a configured pricing
+				// tier — these never appear in the tier table above.
+				$bulk_all   = get_post_meta( $product_id, $this->config->bulk_pricing_meta(), true );
+				$bulk_all   = is_array( $bulk_all ) ? $bulk_all : array();
+				$extra_bulk = array_diff_key( $bulk_all, $tiers );
+				if ( ! empty( $extra_bulk ) ) :
+					?>
+					<h3><?php esc_html_e( 'Role-targeted quantity breaks', 'wc-pricebook' ); ?></h3>
+					<p class="note"><?php esc_html_e( 'Bulk pricing set for roles that are not configured pricing tiers. It applies to any customer who has the role (lowest applicable price wins).', 'wc-pricebook' ); ?></p>
+					<table>
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Role', 'wc-pricebook' ); ?></th>
+								<th><?php esc_html_e( 'Quantity breaks', 'wc-pricebook' ); ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ( array_keys( $extra_bulk ) as $bulk_key ) : ?>
+								<tr>
+									<td><strong><?php echo esc_html( $this->role_label( (string) $bulk_key ) ); ?></strong></td>
+									<td>
+										<?php $break_rows = $this->engine->bulk_breaks( $product_id, (string) $bulk_key ); ?>
+										<?php if ( empty( $break_rows ) ) : ?>
+											<span class="note">—</span>
+										<?php else : ?>
+											<ul class="breaks">
+												<?php foreach ( $break_rows as $b ) : ?>
+													<li>
+														<span class="qty"><?php echo esc_html( 0 === (int) $b['max_qty'] ? sprintf( '%d+', (int) $b['min_qty'] ) : sprintf( '%1$d–%2$d', (int) $b['min_qty'], (int) $b['max_qty'] ) ); ?>:</span>
+														<?php echo $this->price_cell( $b['price'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+													</li>
+												<?php endforeach; ?>
+											</ul>
+										<?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+					<?php
+				endif;
+				?>
 
 				<?php if ( ! empty( $user_rows ) ) : ?>
 					<h3><?php esc_html_e( 'Customer-specific prices', 'wc-pricebook' ); ?></h3>
