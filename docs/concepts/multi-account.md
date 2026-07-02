@@ -4,6 +4,14 @@ Many B2B stores let a business account have multiple logins (a primary account p
 sub-accounts) that should all be priced the same. WC Pricebook supports this with a
 single resolution point.
 
+::: tip Opt-in — no default
+Multi-account resolution is **opt-in**. The plugin ships **no** default resolver: out of
+the box the `wc_pricebook_pricing_user` filter returns the logged-in user unchanged, so
+every account is priced as itself. Add the filter below to enable sub-accounts. (There's
+no universal "sub-account" model in WooCommerce, so the plugin can't guess the parent
+relationship — you point it at whatever meta/plugin links your accounts.)
+:::
+
 ## The resolved pricing user
 
 Everything — pricing, visibility, force overrides, category-role mappings — runs on the
@@ -13,6 +21,8 @@ parent resolution once, in the `wc_pricebook_pricing_user` filter:
 ```php
 add_filter( 'wc_pricebook_pricing_user', function ( $user ) {
     // Return the parent WP_User when $user is a sub-account.
+    // 'parent_account' is a placeholder — use whatever meta key (or B2B/membership
+    // plugin API) your store already uses to link a sub-account to its parent.
     $parent_id = (int) get_user_meta( $user->ID, 'parent_account', true );
     return $parent_id ? get_user_by( 'id', $parent_id ) : $user;
 } );
