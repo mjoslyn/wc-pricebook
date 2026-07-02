@@ -433,16 +433,23 @@ class PriceEngine {
 			}
 
 			$tier_price = $this->price_as_tier( $product_id, $key, $sale );
-			if ( '' === (string) $tier_price[0] || null === $tier_price[0] ) {
+
+			if ( 'always' === $override ) {
+				// An in-scope 'always' tier determines the price outright — even when it
+				// resolves to empty (e.g. an MSRP-mapping tier on a product with no MSRP
+				// hides the price / "Call for Price"), mirroring the legacy category-role
+				// mapping. First 'always' tier in config order wins.
+				if ( null === $forced_always ) {
+					$val               = ( '' === (string) $tier_price[0] || null === $tier_price[0] ) ? '' : (string) $tier_price[0];
+					$history[]         = ( '' === $val ? '(empty — Call for Price)' : $val ) . ' - tier ' . $key . ' (override: always)';
+					$forced_always     = $val;
+					$forced_always_key = $key;
+				}
 				continue;
 			}
 
-			if ( 'always' === $override ) {
-				if ( null === $forced_always ) {
-					$history[]         = $tier_price[0] . ' - tier ' . $key . ' (override: always)';
-					$forced_always     = $tier_price[0];
-					$forced_always_key = $key;
-				}
+			// Non-'always' tiers cannot contribute an empty price as a candidate.
+			if ( '' === (string) $tier_price[0] || null === $tier_price[0] ) {
 				continue;
 			}
 

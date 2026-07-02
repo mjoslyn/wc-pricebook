@@ -262,6 +262,20 @@ class PriceEngineTest extends TestCase {
 		$this->assertSame( '100', (string) $this->engine->price_for_user( null, $product, null, false )[0] );
 	}
 
+	public function test_always_tier_resolving_to_empty_forces_price_empty() {
+		// forced_msrp (always, MSRP fallback) in scope on a product with NO MSRP resolves
+		// to empty — it must force the price empty ("Call for Price"), not step aside and
+		// let the user's dealer price win. Mirrors the legacy category-role → MSRP mapping
+		// on an empty-priced product.
+		$this->set_meta( 10, array( '_regular_price' => '', 'dealer_price' => '70' ) );
+		$this->set_terms( 10, 'product_cat', array( 777 ) );
+		Store::add_user( 5, array( 'forced_msrp', 'dealer' ), array( 'forced_msrp', 'dealer' ) );
+		Store::$current_user = 5;
+
+		$product = new FakeProduct( 10 );
+		$this->assertSame( '', (string) $this->engine->price_for_user( null, $product, null, false )[0] );
+	}
+
 	public function test_multiple_roles_lowest_price_wins() {
 		// Membership is role-based (capabilities). Operator override (when_priced) wins
 		// when it has a price: operator 60 beats dealer 70.
