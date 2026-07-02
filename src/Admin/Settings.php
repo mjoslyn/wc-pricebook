@@ -296,8 +296,9 @@ class Settings {
 		$name       = Config::OPTION;
 		$shortcodes = $this->config->shortcodes();
 		?>
-		<div class="wrap">
+		<div class="wrap wc-pricebook-settings">
 			<h1><?php esc_html_e( 'WC Pricebook', 'wc-pricebook' ); ?></h1>
+			<p class="wc-pricebook-settings__intro"><?php esc_html_e( 'Define pricing tiers and catalog visibility. Each tier or role is a collapsible panel — click a header to expand it.', 'wc-pricebook' ); ?></p>
 			<form method="post" action="options.php">
 				<?php settings_fields( self::GROUP ); ?>
 
@@ -434,9 +435,16 @@ class Settings {
 			'label'      => array( __( 'Label', 'wc-pricebook' ), __( 'Shown in the switcher and tables.', 'wc-pricebook' ) ),
 			'multiplier' => array( __( 'Multiplier', 'wc-pricebook' ), __( 'Applied to base meta when no price is set.', 'wc-pricebook' ) ),
 		);
+		$title = '' !== (string) ( $tier['label'] ?? '' ) ? (string) $tier['label'] : __( 'New tier', 'wc-pricebook' );
 		?>
 		<div class="wc-pricebook-repeater__item" data-repeater-item>
-			<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove tier', 'wc-pricebook' ); ?>"></a>
+			<div class="wc-pricebook-repeater__header">
+				<button type="button" class="wc-pricebook-repeater__toggle" data-accordion-toggle aria-expanded="true">
+					<span class="wc-pricebook-repeater__chevron dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>
+					<span class="wc-pricebook-repeater__title" data-accordion-title data-empty-label="<?php esc_attr_e( 'New tier', 'wc-pricebook' ); ?>"><?php echo esc_html( $title ); ?></span>
+				</button>
+				<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove tier', 'wc-pricebook' ); ?>"></a>
+			</div>
 			<div class="wc-pricebook-repeater__grid">
 				<?php foreach ( $fields as $field => $meta ) : ?>
 					<div class="wc-pricebook-field<?php echo 'label' === $field ? ' wc-pricebook-field--full' : ''; ?>">
@@ -444,6 +452,7 @@ class Settings {
 						<input
 							type="<?php echo 'multiplier' === $field ? 'number' : 'text'; ?>"
 							<?php echo 'multiplier' === $field ? 'step="0.0001"' : ''; ?>
+							<?php echo 'label' === $field ? 'data-accordion-title-source' : ''; ?>
 							name="<?php echo esc_attr( $base . '[' . $field . ']' ); ?>"
 							value="<?php echo esc_attr( (string) ( $tier[ $field ] ?? '' ) ); ?>">
 						<p class="description"><?php echo esc_html( $meta[1] ); ?></p>
@@ -528,14 +537,21 @@ class Settings {
 	 * @return void
 	 */
 	private function render_visibility_role_row( $name, $index, array $role, array $categories ) {
-		$base = $name . '[visibility_roles][' . $index . ']';
+		$base  = $name . '[visibility_roles][' . $index . ']';
+		$title = '' !== (string) ( $role['label'] ?? '' ) ? (string) $role['label'] : __( 'New visibility role', 'wc-pricebook' );
 		?>
 		<div class="wc-pricebook-repeater__item" data-repeater-item>
-			<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove visibility role', 'wc-pricebook' ); ?>"></a>
+			<div class="wc-pricebook-repeater__header">
+				<button type="button" class="wc-pricebook-repeater__toggle" data-accordion-toggle aria-expanded="true">
+					<span class="wc-pricebook-repeater__chevron dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>
+					<span class="wc-pricebook-repeater__title" data-accordion-title data-empty-label="<?php esc_attr_e( 'New visibility role', 'wc-pricebook' ); ?>"><?php echo esc_html( $title ); ?></span>
+				</button>
+				<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove visibility role', 'wc-pricebook' ); ?>"></a>
+			</div>
 			<div class="wc-pricebook-repeater__grid">
 				<div class="wc-pricebook-field wc-pricebook-field--full">
 					<label><?php esc_html_e( 'Name', 'wc-pricebook' ); ?></label>
-					<input type="text" name="<?php echo esc_attr( $base . '[label]' ); ?>" value="<?php echo esc_attr( (string) ( $role['label'] ?? '' ) ); ?>">
+					<input type="text" data-accordion-title-source name="<?php echo esc_attr( $base . '[label]' ); ?>" value="<?php echo esc_attr( (string) ( $role['label'] ?? '' ) ); ?>">
 				</div>
 				<div class="wc-pricebook-field wc-pricebook-field--full">
 					<label><?php esc_html_e( 'Roles', 'wc-pricebook' ); ?></label>

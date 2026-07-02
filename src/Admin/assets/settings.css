@@ -1,5 +1,26 @@
 /* Pricebook settings repeater UI. */
 
+/* --- Page hierarchy & spacing --- */
+.wc-pricebook-settings__intro {
+	max-width: 46em;
+	margin: 4px 0 20px;
+	color: #50575e;
+	font-size: 13px;
+}
+
+.wc-pricebook-settings h2 {
+	margin: 34px 0 4px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid #dcdcde;
+	font-size: 16px;
+}
+
+.wc-pricebook-settings h2 + .description {
+	max-width: 46em;
+	margin: 0 0 14px;
+}
+
+/* --- Repeater / accordion --- */
 .wc-pricebook-repeater {
 	margin: 0 0 1.5em;
 }
@@ -7,22 +28,75 @@
 .wc-pricebook-repeater__list {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 10px;
 }
 
 .wc-pricebook-repeater__item {
-	position: relative;
-	padding: 16px 44px 8px 16px;
 	border: 1px solid #c3c4c7;
 	border-left: 4px solid #2271b1;
 	background: #fff;
 	border-radius: 4px;
+	overflow: hidden;
+}
+
+/* Accordion header */
+.wc-pricebook-repeater__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px 2px 2px;
+	background: #f6f7f7;
+}
+
+.wc-pricebook-repeater__item:not(.is-collapsed) .wc-pricebook-repeater__header {
+	border-bottom: 1px solid #e2e4e7;
+	background: #fbfbfc;
+}
+
+.wc-pricebook-repeater__toggle {
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 9px 10px;
+	background: none;
+	border: 0;
+	cursor: pointer;
+	text-align: left;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.wc-pricebook-repeater__toggle:hover .wc-pricebook-repeater__title {
+	color: #2271b1;
+}
+
+.wc-pricebook-repeater__toggle:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: -2px;
+	border-radius: 3px;
+}
+
+.wc-pricebook-repeater__chevron {
+	color: #787c82;
+	transition: transform 0.15s ease;
+}
+
+.wc-pricebook-repeater__item.is-collapsed .wc-pricebook-repeater__chevron {
+	transform: rotate(-90deg);
+}
+
+/* Collapsed: show only the header. */
+.wc-pricebook-repeater__item.is-collapsed > :not(.wc-pricebook-repeater__header) {
+	display: none;
 }
 
 .wc-pricebook-repeater__grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(220px, 1fr));
-	gap: 12px 24px;
+	gap: 14px 24px;
+	padding: 16px;
 }
 
 .wc-pricebook-field {
@@ -73,8 +147,8 @@
 	display: grid;
 	grid-template-columns: repeat(2, minmax(220px, 1fr));
 	gap: 16px 24px;
-	margin-top: 12px;
-	padding-top: 12px;
+	margin: 0;
+	padding: 14px 16px 16px;
 	border-top: 1px solid #f0f0f1;
 }
 
@@ -109,16 +183,18 @@
 }
 
 .wc-pricebook-repeater__remove {
-	position: absolute;
-	top: 10px;
-	right: 10px;
+	flex: 0 0 auto;
 	color: #b32d2e;
 	text-decoration: none;
 	cursor: pointer;
+	padding: 6px;
+	line-height: 1;
+	border-radius: 3px;
 }
 
 .wc-pricebook-repeater__remove:hover {
-	color: #8a2424;
+	color: #fff;
+	background: #b32d2e;
 }
 
 .wc-pricebook-repeater__add {
