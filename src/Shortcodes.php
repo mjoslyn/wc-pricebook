@@ -195,9 +195,8 @@ class Shortcodes {
 		}
 		$product_id = $post->ID;
 
-		$flags = wp_get_post_terms( $product_id, 'product_flag', array( 'fields' => 'all' ) );
 		$cats  = wp_get_post_terms( $product_id, 'product_cat', array( 'fields' => 'all' ) );
-		$terms = array_merge( is_array( $flags ) ? $flags : array(), is_array( $cats ) ? $cats : array() );
+		$terms = is_array( $cats ) ? $cats : array();
 
 		ob_start();
 		include WC_PRICEBOOK_DIR . 'src/templates/pricing-table.php';

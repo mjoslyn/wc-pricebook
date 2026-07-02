@@ -413,24 +413,6 @@ class Flowchart {
 					}
 					?>
 				</p>
-				<?php
-				$flag_terms = get_the_terms( $product_id, 'product_flag' );
-				$flag_terms = ( is_array( $flag_terms ) ) ? $flag_terms : array();
-				?>
-				<p class="note" style="margin-top:0;">
-					<strong><?php esc_html_e( 'Product flags:', 'wc-pricebook' ); ?></strong>
-					<?php
-					if ( empty( $flag_terms ) ) {
-						esc_html_e( 'none', 'wc-pricebook' );
-					} else {
-						$flag_labels = array();
-						foreach ( $flag_terms as $flag ) {
-							$flag_labels[] = sprintf( '%s (#%d)', $flag->name, (int) $flag->term_id );
-						}
-						echo esc_html( implode( ', ', $flag_labels ) );
-					}
-					?>
-				</p>
 				<p class="note"><?php esc_html_e( 'How a customer\'s price is chosen, in order:', 'wc-pricebook' ); ?></p>
 				<ol class="steps">
 					<li><?php esc_html_e( 'A customer-specific price (below), if set for them — beats everything.', 'wc-pricebook' ); ?></li>

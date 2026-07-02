@@ -6,7 +6,7 @@
  *
  * @var \WCPricebook\Shortcodes $this       Shortcodes instance (exposes engine/config).
  * @var int                     $product_id Current product ID.
- * @var array                   $terms      Product flag + category term objects.
+ * @var array                   $terms      Product category term objects.
  *
  * @package WCPricebook
  */
