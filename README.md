@@ -144,9 +144,17 @@ or the `wc_pricebook_rules` filter:
 
 ## Install
 
-1. Download a release zip (or clone this repo) into `wp-content/plugins/wc-pricebook`.
-2. Activate **WC Pricebook** (WooCommerce must be active).
+1. Download the latest **`wc-pricebook-vX.Y.Z.zip`** from
+   [Releases](https://github.com/mjoslyn/wc-pricebook/releases).
+2. WP admin → **Plugins → Add New → Upload Plugin** → the zip → **Install Now** →
+   **Activate** (WooCommerce must be active).
 3. Configure under **WooCommerce → Pricebook**.
+
+**Updates:** distributed via GitHub, so WordPress won't show update notices on its own.
+Install the free [Git Updater](https://git-updater.com/) plugin to get in-dashboard
+updates from this repo's releases (the plugin already carries the required headers), or
+just upload a newer release zip to update manually. See the
+[install docs](https://mjoslyn.github.io/wc-pricebook/guide/install) for details.
 
 The plugin runs **without Composer** — it ships a PSR‑4 autoloader and prefers
 Composer's autoloader only if `vendor/` exists. `composer install` is for dev tooling
