@@ -23,6 +23,21 @@ The first step that applies wins.
 4. **Multiplier fallback** — `multiplier × base role's price` when no explicit price.
 5. **Chained `fallback_to`** — MSRP or another tier.
 
+## Zero prices
+
+The effective price a customer sees (`effective_price()`, the lowest of the resolved
+regular and sale prices) treats an exact `0` as "not yet priced" and blanks it to an
+empty price ("Call for Price"). This matches stores where `0` is a placeholder rather
+than a genuine free price.
+
+A store that sells real $0 products can keep the zero by returning `true` from the
+[`wc_pricebook_allow_zero_price`](/reference/filters#pricing) filter — globally or per
+product/user:
+
+```php
+add_filter( 'wc_pricebook_allow_zero_price', '__return_true' );
+```
+
 ## Visibility vs. price
 
 "Hidden" comes in two flavors, and they're independent of the number above:

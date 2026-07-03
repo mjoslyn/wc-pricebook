@@ -42,6 +42,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'Filters & hooks', link: '/reference/filters' },
+            { text: 'Pricelist export', link: '/reference/pricelist-export' },
             { text: 'Architecture', link: '/reference/architecture' },
             { text: 'The price flowchart', link: '/reference/flowchart' },
           ],

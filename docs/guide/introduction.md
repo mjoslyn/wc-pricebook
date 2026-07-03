@@ -25,3 +25,5 @@ That means:
 - Follow the [Quick start](./quick-start).
 - Learn the [concepts](/concepts/tiers): tiers, resolution order, visibility roles,
   force overrides, and rules.
+- Audit prices with the [pricelist export](/reference/pricelist-export) — a CSV of every
+  customer's resolved price, from WP-CLI or on a schedule.

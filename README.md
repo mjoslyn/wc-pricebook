@@ -189,6 +189,34 @@ to see, for any product and customer:
 Product and customer fields are search‑as‑you‑type (products searchable by **title or
 SKU**).
 
+## Pricelist export
+
+Export a CSV of the **resolved price for every user against every product** — one row
+per (user, product) pair, with columns `display_name, roles, product, sku,
+resolved_price`. A hidden / "Call for Price" price is written as an empty cell. Each
+price is resolved through the full engine for that user (tiers, per‑user overrides,
+category→role mapping, visibility gating), exactly as the customer would see it.
+
+Three ways to run it, all production‑safe:
+
+- **WP‑CLI** — headless, no login required:
+
+  ```bash
+  wp wc-pricebook export-pricelist --file=/tmp/pricelist.csv       # write a file
+  wp wc-pricebook export-pricelist --email=sales@example.com        # email it
+  wp wc-pricebook export-pricelist --roles=dealer,operator --send   # limit + email configured recipient
+  ```
+
+- **Scheduled (WP‑Cron)** — set **WooCommerce → Pricebook → Pricelist export** to
+  *Daily* or *Weekly*; the CSV is emailed to the configured recipient automatically.
+
+- **On demand** — the **Generate and email now** button on that settings page.
+
+The **recipient** defaults to the signed‑in admin's email (falling back to the site
+`admin_email` when blank), and an optional **role filter** limits the export to users in
+selected roles. Users and products are gathered in pages so the command scales on large
+stores.
+
 ## Multi-account / sub-accounts
 
 Pricing and visibility always run on the **resolved pricing user**. A store implements
@@ -213,6 +241,9 @@ without touching the option:
 | `wc_pricebook_category_roles` | A user's category→role mappings |
 | `wc_pricebook_user_meta_keys` / `wc_pricebook_user_pricing_meta` | Point the plugin at a store's existing meta keys |
 | `wc_pricebook_base_meta` / `wc_pricebook_bulk_pricing_meta` | MSRP / bulk‑pricing meta keys |
+| `wc_pricebook_allow_zero_price` | Keep a resolved $0 as a real price (default: blank to "Call for Price") |
+| `wc_pricebook_export_settings` | Pricelist‑export recipient / schedule / role filter |
+| `wc_pricebook_export_product_ids` / `wc_pricebook_export_user_query` | Products / user query for the pricelist export |
 
 ## Architecture
 
@@ -232,6 +263,7 @@ PSR‑4 `WCPricebook\` → `src/`.
 | `src/Admin/UserProfile.php` | Per‑user My Products / include‑exclude / category roles |
 | `src/Switcher/` | Manager admin‑bar pricing switcher |
 | `src/Flowchart/Flowchart.php` | `/price-flowchart` debug page |
+| `src/Export/` | Per‑user pricelist CSV export (WP‑CLI, cron, "Send now") |
 
 **Design rule:** anything a store needs is reachable from settings/options or a filter —
 adoption is a data migration, not a code fork. No store‑specific IDs, roles, or names

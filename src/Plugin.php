@@ -13,6 +13,7 @@ use WCPricebook\Admin\ProductMeta;
 use WCPricebook\Switcher\Switcher;
 use WCPricebook\Flowchart\Flowchart;
 use WCPricebook\ProductPrices\ProductPrices;
+use WCPricebook\Export\ExportModule;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -150,6 +151,10 @@ class Plugin {
 		if ( $this->config->module_enabled( 'product_prices' ) ) {
 			( new ProductPrices( $this->config, $this->context, $this->engine ) )->register();
 		}
+
+		// Pricelist CSV export (WP-CLI + cron + settings "Send now"). Always registered:
+		// cron and WP-CLI run with no admin context, and the schedule syncs on save.
+		( new ExportModule( $this->config, $this->engine ) )->register();
 	}
 
 	/**
@@ -170,6 +175,7 @@ class Plugin {
 	 * @return void
 	 */
 	public static function on_deactivation() {
+		wp_clear_scheduled_hook( \WCPricebook\Export\ExportModule::CRON_HOOK );
 		flush_rewrite_rules();
 	}
 }
