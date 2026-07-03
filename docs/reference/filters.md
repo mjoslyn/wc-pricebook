@@ -47,6 +47,7 @@ Used by the [pricelist export](/reference/pricelist-export):
 | `wc_pricebook_export_settings` | Recipient / schedule / role filter |
 | `wc_pricebook_export_product_ids` | The product refs included in the export |
 | `wc_pricebook_export_user_query` | The `WP_User_Query` args used to gather users |
+| `wc_pricebook_export_batch_rows` | Target CSV rows per background (Action Scheduler) batch — default 5,000 |
 
 ## Example
 

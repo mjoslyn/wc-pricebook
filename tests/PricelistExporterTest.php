@@ -67,6 +67,35 @@ class PricelistExporterTest extends TestCase {
 		$this->assertSame( '', $row[3] );
 	}
 
+	public function test_init_csv_then_append_rows_builds_the_file() {
+		// The background (batched) path: init_csv writes the header once, then append_rows
+		// adds a chunk of users — the same shape write_csv produces in one pass.
+		Store::add_user( 50, array( 'dealer' ), array( 'dealer' ) );
+		Store::add_user( 51, array( 'customer' ), array() );
+		$this->set_meta( 60, array( '_regular_price' => '100', 'dealer_price' => '70' ) );
+
+		$exporter = $this->exporter();
+		$file     = tempnam( sys_get_temp_dir(), 'pbtest' );
+
+		$exporter->init_csv( $file );
+		$written = $exporter->append_rows(
+			$file,
+			array(
+				array( 'id' => 50, 'display_name' => 'Dealer Dan', 'roles' => array( 'dealer' ) ),
+				array( 'id' => 51, 'display_name' => 'Retail Rita', 'roles' => array( 'customer' ) ),
+			),
+			array( array( 'id' => 60, 'name' => 'Widget', 'sku' => 'W-1' ) )
+		);
+
+		$lines = array_values( array_filter( explode( "\n", (string) file_get_contents( $file ) ), 'strlen' ) );
+		@unlink( $file );
+
+		$this->assertSame( 2, $written );
+		$this->assertSame( array( 'display_name', 'roles', 'product', 'sku', 'resolved_price' ), str_getcsv( $lines[0], ',', '"', '\\' ) );
+		$this->assertSame( array( 'Dealer Dan', 'dealer', 'Widget', 'W-1', '70.00' ), str_getcsv( $lines[1], ',', '"', '\\' ) );
+		$this->assertSame( array( 'Retail Rita', 'customer', 'Widget', 'W-1', '100.00' ), str_getcsv( $lines[2], ',', '"', '\\' ) );
+	}
+
 	public function test_row_is_empty_when_price_is_hidden() {
 		// The 'gate' visibility role hides pricing (Call for Price) for MSRP customers
 		// on category 999 — the resolved price is empty.

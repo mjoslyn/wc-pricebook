@@ -43,6 +43,7 @@ wp wc-pricebook export-pricelist --roles=dealer,operator --send
 | `--email=<address>` | Email the CSV to this address as an attachment. |
 | `--roles=<slugs>` | Comma-separated WP roles to limit the export to (default: every user). |
 | `--send` | Email the CSV to the configured recipient (or the site admin). |
+| `--async` | Queue the run through Action Scheduler (background batches) and email it when done. |
 
 ### Scheduled (WP-Cron)
 
@@ -52,8 +53,26 @@ whenever the settings are saved, and is cleared on plugin deactivation.
 
 ### On demand
 
-The **Generate and email now** button on that settings page builds the CSV immediately
-and emails it to the recipient.
+The **Generate and email now** button on that settings page starts the export in the
+background and returns immediately; the email arrives when it finishes.
+
+### Background processing
+
+The scheduled run and the **Generate and email now** button run **in the background via
+[Action Scheduler](https://actionscheduler.org/)** (bundled with WooCommerce): the
+product list is captured once, then users are processed in bounded batches so no single
+request builds the whole file. This is what keeps a large store from timing out — a full
+export is far too big for one PHP request.
+
+- Batches are sized so `users-per-batch × products ≈ 5,000` rows; tune with the
+  [`wc_pricebook_export_batch_rows`](/reference/filters#pricelist-export) filter.
+- Batches run as Action Scheduler jobs, which are processed by WP-Cron (site traffic) or
+  a real cron pinging `wp-cron.php` / `wp action-scheduler run`. On a very low-traffic
+  site, make sure something is driving the queue.
+- Only one export runs at a time; starting another while one is in progress is ignored
+  until it finishes.
+- WP-CLI stays **synchronous** by default (no request timeout). Pass `--async` to route a
+  CLI run through the same background batches instead.
 
 ## Settings
 
@@ -85,3 +104,4 @@ explicitly on the product if you need a figure in the export.
 | `wc_pricebook_export_settings` | Recipient / schedule / role filter |
 | `wc_pricebook_export_product_ids` | The product refs (`id`, `name`, `sku`) included |
 | `wc_pricebook_export_user_query` | The `WP_User_Query` args used to gather users |
+| `wc_pricebook_export_batch_rows` | Target CSV rows per background batch (default 5,000) |

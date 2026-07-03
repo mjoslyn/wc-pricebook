@@ -214,8 +214,13 @@ Three ways to run it, all production‑safe:
 
 The **recipient** defaults to the signed‑in admin's email (falling back to the site
 `admin_email` when blank), and an optional **role filter** limits the export to users in
-selected roles. Users and products are gathered in pages so the command scales on large
-stores.
+selected roles.
+
+The scheduled run and the **Generate and email now** button run **in the background via
+Action Scheduler** (bundled with WooCommerce): users are processed in bounded batches so
+no single request builds the whole file — this is what keeps a large store from timing
+out. The email arrives when the last batch finishes. WP‑CLI stays synchronous by default
+(no request timeout); pass `--async` to use the background batches instead.
 
 ## Multi-account / sub-accounts
 

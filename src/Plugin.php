@@ -175,7 +175,13 @@ class Plugin {
 	 * @return void
 	 */
 	public static function on_deactivation() {
-		wp_clear_scheduled_hook( \WCPricebook\Export\ExportModule::CRON_HOOK );
+		wp_clear_scheduled_hook( ExportModule::CRON_HOOK );
+		// Drop any in-progress background export (queued batches + its state).
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( ExportModule::BATCH_HOOK );
+		}
+		delete_option( ExportModule::STATE_OPTION );
+		delete_option( ExportModule::PRODUCTS_OPTION );
 		flush_rewrite_rules();
 	}
 }
