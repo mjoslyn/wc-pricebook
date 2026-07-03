@@ -107,6 +107,29 @@ class PriceEngineTest extends TestCase {
 		$this->assertSame( '100', $this->engine->price_as_tier( 10, 'operator', false )[0] );
 	}
 
+	public function test_zero_resolved_price_is_blanked_by_default() {
+		// A store where 0 means "not yet priced": effective_price blanks a resolved 0 to
+		// empty ("Call for Price"), matching production's fm-engine behavior.
+		Store::add_user( 40, array( 'customer' ), array() );
+		$this->set_meta( 20, array( '_regular_price' => '0' ) );
+		$this->assertSame( '', $this->engine->effective_price( '', new FakeProduct( 20 ), 40 ) );
+	}
+
+	public function test_zero_resolved_price_kept_when_filter_allows() {
+		Store::add_user( 41, array( 'customer' ), array() );
+		$this->set_meta( 21, array( '_regular_price' => '0' ) );
+		add_filter( 'wc_pricebook_allow_zero_price', static function () {
+			return true;
+		} );
+		$this->assertSame( 0.0, (float) $this->engine->effective_price( '', new FakeProduct( 21 ), 41 ) );
+	}
+
+	public function test_nonzero_effective_price_is_unaffected_by_blanking() {
+		Store::add_user( 42, array( 'customer' ), array() );
+		$this->set_meta( 22, array( '_regular_price' => '100' ) );
+		$this->assertSame( '100', (string) $this->engine->effective_price( '', new FakeProduct( 22 ), 42 ) );
+	}
+
 	public function test_operator_override_inert_uses_dealer_when_no_operator_price() {
 		// operator+dealer, no operator price -> operator override (when_priced) is inert,
 		// so the dealer tier resolves -> dealer price (case 2).

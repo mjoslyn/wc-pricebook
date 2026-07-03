@@ -486,12 +486,54 @@ class PriceEngine {
 		$sale    = $this->price_for_user( $price, $product, $user_id, true );
 
 		if ( '' === (string) $sale[0] || null === $sale[0] ) {
-			return $regular[0];
+			$resolved = $regular[0];
+		} elseif ( (float) $sale[0] < (float) $regular[0] ) {
+			$resolved = $sale[0];
+		} else {
+			$resolved = $regular[0];
 		}
-		if ( (float) $sale[0] < (float) $regular[0] ) {
-			return $sale[0];
+
+		return $this->normalize_zero_price( $resolved, $product, $user_id );
+	}
+
+	/**
+	 * Treat a resolved price of exactly zero as "no price" (empty string → the
+	 * WooCommerce "Call for Price" label), matching a store whose 0 means "not yet
+	 * priced" rather than free. This covers products with a 0 regular price and bundles
+	 * whose base price is zeroed for their own plugin to price — where a store manages
+	 * the price elsewhere, the pricebook must not assert a literal $0.
+	 *
+	 * A store that sells genuinely free ($0) products can keep the zero by returning
+	 * true from the wc_pricebook_allow_zero_price filter (globally or per product/user).
+	 *
+	 * @param mixed    $price   Resolved price.
+	 * @param mixed    $product Product object (for get_id()).
+	 * @param int|null $user_id Optional user the price was resolved for.
+	 * @return mixed Empty string when the price is a blanked zero, else the price.
+	 */
+	private function normalize_zero_price( $price, $product, $user_id = null ) {
+		if ( '' === (string) $price || null === $price || ! is_numeric( $price ) ) {
+			return $price;
 		}
-		return $regular[0];
+		if ( 0.0 !== (float) $price ) {
+			return $price;
+		}
+
+		$product_id = ( is_object( $product ) && method_exists( $product, 'get_id' ) ) ? $product->get_id() : 0;
+
+		/**
+		 * Filters whether a resolved price of zero is kept as a real $0 price. Default
+		 * false: a zero price is blanked to empty ("Call for Price"). Return true to let
+		 * a genuine free ($0) price through.
+		 *
+		 * @param bool     $allow      Whether to keep the zero price.
+		 * @param int      $product_id Product ID.
+		 * @param int|null $user_id    User the price was resolved for (may be null).
+		 * @param mixed    $product    Product object.
+		 */
+		$allow = (bool) apply_filters( 'wc_pricebook_allow_zero_price', false, $product_id, $user_id, $product );
+
+		return $allow ? $price : '';
 	}
 
 	/**

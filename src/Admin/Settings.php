@@ -162,8 +162,31 @@ class Settings {
 		// rule binding is on the product side; category-level binding is set below.
 		$out['tiers']            = $this->sanitize_tiers( $input['tiers'] ?? array() );
 		$out['visibility_roles'] = $this->sanitize_visibility_roles( $input['visibility_roles'] ?? array() );
+		$out['export']           = $this->sanitize_export( $input['export'] ?? array() );
 
 		return $out;
+	}
+
+	/**
+	 * Normalize the pricelist-export settings: recipient email, cron cadence, and an
+	 * optional role filter. The cron schedule itself is (re)synced by ExportModule on
+	 * the update_option hook after this save.
+	 *
+	 * @param mixed $input Submitted export settings.
+	 * @return array{recipient:string,schedule:string,roles:array<int,string>}
+	 */
+	private function sanitize_export( $input ) {
+		$input     = is_array( $input ) ? $input : array();
+		$recipient = isset( $input['recipient'] ) ? sanitize_email( (string) $input['recipient'] ) : '';
+		$schedule  = isset( $input['schedule'] ) ? (string) $input['schedule'] : 'off';
+
+		return array(
+			'recipient' => $recipient,
+			'schedule'  => in_array( $schedule, array( 'off', 'daily', 'weekly' ), true ) ? $schedule : 'off',
+			'roles'     => isset( $input['roles'] ) && is_array( $input['roles'] )
+				? array_values( array_unique( array_filter( array_map( 'sanitize_key', $input['roles'] ) ) ) )
+				: array(),
+		);
 	}
 
 
@@ -296,9 +319,8 @@ class Settings {
 		$name       = Config::OPTION;
 		$shortcodes = $this->config->shortcodes();
 		?>
-		<div class="wrap wc-pricebook-settings">
+		<div class="wrap">
 			<h1><?php esc_html_e( 'WC Pricebook', 'wc-pricebook' ); ?></h1>
-			<p class="wc-pricebook-settings__intro"><?php esc_html_e( 'Define pricing tiers and catalog visibility. Each tier or role is a collapsible panel — click a header to expand it.', 'wc-pricebook' ); ?></p>
 			<form method="post" action="options.php">
 				<?php settings_fields( self::GROUP ); ?>
 
@@ -335,9 +357,96 @@ class Settings {
 					</tr>
 				</table>
 
+				<?php $this->render_export_settings( $name, is_array( $c['export'] ?? null ) ? $c['export'] : array() ); ?>
+
 				<?php submit_button(); ?>
 			</form>
+
+			<?php $this->render_export_send_now( is_array( $c['export'] ?? null ) ? $c['export'] : array() ); ?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Render the pricelist-export settings (inside the main settings form): recipient
+	 * email, cron cadence, and an optional role filter. The recipient defaults to the
+	 * current admin's email so an unconfigured install still emails a sensible address.
+	 *
+	 * @param string              $name   Option name prefix.
+	 * @param array<string,mixed> $export Stored export settings.
+	 * @return void
+	 */
+	private function render_export_settings( $name, array $export ) {
+		$current   = wp_get_current_user();
+		$recipient = isset( $export['recipient'] ) && '' !== (string) $export['recipient'] ? (string) $export['recipient'] : (string) $current->user_email;
+		$schedule  = in_array( $export['schedule'] ?? 'off', array( 'off', 'daily', 'weekly' ), true ) ? $export['schedule'] : 'off';
+		$sel_roles = isset( $export['roles'] ) && is_array( $export['roles'] ) ? array_map( 'strval', $export['roles'] ) : array();
+		$schedules = array(
+			'off'    => __( 'Off (manual / WP-CLI only)', 'wc-pricebook' ),
+			'daily'  => __( 'Daily', 'wc-pricebook' ),
+			'weekly' => __( 'Weekly', 'wc-pricebook' ),
+		);
+		?>
+		<h2><?php esc_html_e( 'Pricelist export', 'wc-pricebook' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Export a CSV of every user’s resolved price for every product (display name, roles, product, SKU, resolved price). Runs from WP-CLI (wp wc-pricebook export-pricelist), on a schedule, or with the button below.', 'wc-pricebook' ); ?></p>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th><label for="wc-pricebook-export-recipient"><?php esc_html_e( 'Email recipient', 'wc-pricebook' ); ?></label></th>
+				<td>
+					<input type="email" class="regular-text" id="wc-pricebook-export-recipient" name="<?php echo esc_attr( $name . '[export][recipient]' ); ?>" value="<?php echo esc_attr( $recipient ); ?>" placeholder="<?php echo esc_attr( (string) $current->user_email ); ?>">
+					<p class="description"><?php esc_html_e( 'Where the scheduled export is emailed. Defaults to your address; leave blank to use the site admin email.', 'wc-pricebook' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="wc-pricebook-export-schedule"><?php esc_html_e( 'Schedule', 'wc-pricebook' ); ?></label></th>
+				<td>
+					<select id="wc-pricebook-export-schedule" name="<?php echo esc_attr( $name . '[export][schedule]' ); ?>">
+						<?php foreach ( $schedules as $value => $label ) : ?>
+							<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $schedule, $value ); ?>><?php echo esc_html( $label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<p class="description"><?php esc_html_e( 'How often to email the export automatically (WP-Cron).', 'wc-pricebook' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><label><?php esc_html_e( 'Limit to roles', 'wc-pricebook' ); ?></label></th>
+				<td>
+					<select multiple class="wc-enhanced-select" name="<?php echo esc_attr( $name . '[export][roles][]' ); ?>" style="min-width:25em;" data-placeholder="<?php esc_attr_e( 'All users', 'wc-pricebook' ); ?>">
+						<?php
+						if ( function_exists( 'wp_roles' ) ) :
+							foreach ( wp_roles()->get_names() as $slug => $label ) :
+								?>
+								<option value="<?php echo esc_attr( (string) $slug ); ?>" <?php echo in_array( (string) $slug, $sel_roles, true ) ? 'selected="selected"' : ''; ?>><?php echo esc_html( $label ); ?></option>
+								<?php
+							endforeach;
+						endif;
+						?>
+					</select>
+					<p class="description"><?php esc_html_e( 'Optional. Restrict the export to users in these roles. Leave empty to include every user.', 'wc-pricebook' ); ?></p>
+				</td>
+			</tr>
+		</table>
+		<?php
+	}
+
+	/**
+	 * Render the "Send now" button as its own form (posting to admin-post.php, since it
+	 * cannot be nested in the settings form). Emails the export immediately.
+	 *
+	 * @param array<string,mixed> $export Stored export settings.
+	 * @return void
+	 */
+	private function render_export_send_now( array $export ) {
+		$current   = wp_get_current_user();
+		$recipient = isset( $export['recipient'] ) && '' !== (string) $export['recipient'] ? (string) $export['recipient'] : (string) $current->user_email;
+		?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:1em;">
+			<input type="hidden" name="action" value="<?php echo esc_attr( \WCPricebook\Export\ExportModule::ACTION_NOW ); ?>">
+			<input type="hidden" name="recipient" value="<?php echo esc_attr( $recipient ); ?>">
+			<?php wp_nonce_field( \WCPricebook\Export\ExportModule::ACTION_NOW ); ?>
+			<?php submit_button( __( 'Generate and email now', 'wc-pricebook' ), 'secondary', 'wc-pricebook-export-now', false ); ?>
+			<p class="description"><?php esc_html_e( 'Builds the CSV now and emails it to the recipient above. Save your changes first if you just edited the recipient.', 'wc-pricebook' ); ?></p>
+		</form>
 		<?php
 	}
 
@@ -435,16 +544,9 @@ class Settings {
 			'label'      => array( __( 'Label', 'wc-pricebook' ), __( 'Shown in the switcher and tables.', 'wc-pricebook' ) ),
 			'multiplier' => array( __( 'Multiplier', 'wc-pricebook' ), __( 'Applied to base meta when no price is set.', 'wc-pricebook' ) ),
 		);
-		$title = '' !== (string) ( $tier['label'] ?? '' ) ? (string) $tier['label'] : __( 'New tier', 'wc-pricebook' );
 		?>
 		<div class="wc-pricebook-repeater__item" data-repeater-item>
-			<div class="wc-pricebook-repeater__header">
-				<button type="button" class="wc-pricebook-repeater__toggle" data-accordion-toggle aria-expanded="true">
-					<span class="wc-pricebook-repeater__chevron dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>
-					<span class="wc-pricebook-repeater__title" data-accordion-title data-empty-label="<?php esc_attr_e( 'New tier', 'wc-pricebook' ); ?>"><?php echo esc_html( $title ); ?></span>
-				</button>
-				<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove tier', 'wc-pricebook' ); ?>"></a>
-			</div>
+			<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove tier', 'wc-pricebook' ); ?>"></a>
 			<div class="wc-pricebook-repeater__grid">
 				<?php foreach ( $fields as $field => $meta ) : ?>
 					<div class="wc-pricebook-field<?php echo 'label' === $field ? ' wc-pricebook-field--full' : ''; ?>">
@@ -452,7 +554,6 @@ class Settings {
 						<input
 							type="<?php echo 'multiplier' === $field ? 'number' : 'text'; ?>"
 							<?php echo 'multiplier' === $field ? 'step="0.0001"' : ''; ?>
-							<?php echo 'label' === $field ? 'data-accordion-title-source' : ''; ?>
 							name="<?php echo esc_attr( $base . '[' . $field . ']' ); ?>"
 							value="<?php echo esc_attr( (string) ( $tier[ $field ] ?? '' ) ); ?>">
 						<p class="description"><?php echo esc_html( $meta[1] ); ?></p>
@@ -537,21 +638,14 @@ class Settings {
 	 * @return void
 	 */
 	private function render_visibility_role_row( $name, $index, array $role, array $categories ) {
-		$base  = $name . '[visibility_roles][' . $index . ']';
-		$title = '' !== (string) ( $role['label'] ?? '' ) ? (string) $role['label'] : __( 'New visibility role', 'wc-pricebook' );
+		$base = $name . '[visibility_roles][' . $index . ']';
 		?>
 		<div class="wc-pricebook-repeater__item" data-repeater-item>
-			<div class="wc-pricebook-repeater__header">
-				<button type="button" class="wc-pricebook-repeater__toggle" data-accordion-toggle aria-expanded="true">
-					<span class="wc-pricebook-repeater__chevron dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>
-					<span class="wc-pricebook-repeater__title" data-accordion-title data-empty-label="<?php esc_attr_e( 'New visibility role', 'wc-pricebook' ); ?>"><?php echo esc_html( $title ); ?></span>
-				</button>
-				<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove visibility role', 'wc-pricebook' ); ?>"></a>
-			</div>
+			<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove visibility role', 'wc-pricebook' ); ?>"></a>
 			<div class="wc-pricebook-repeater__grid">
 				<div class="wc-pricebook-field wc-pricebook-field--full">
 					<label><?php esc_html_e( 'Name', 'wc-pricebook' ); ?></label>
-					<input type="text" data-accordion-title-source name="<?php echo esc_attr( $base . '[label]' ); ?>" value="<?php echo esc_attr( (string) ( $role['label'] ?? '' ) ); ?>">
+					<input type="text" name="<?php echo esc_attr( $base . '[label]' ); ?>" value="<?php echo esc_attr( (string) ( $role['label'] ?? '' ) ); ?>">
 				</div>
 				<div class="wc-pricebook-field wc-pricebook-field--full">
 					<label><?php esc_html_e( 'Roles', 'wc-pricebook' ); ?></label>

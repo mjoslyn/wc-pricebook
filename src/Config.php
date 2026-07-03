@@ -138,6 +138,15 @@ class Config {
 				'product_prices' => false,
 				'product_meta'   => true,
 			),
+			/* Pricelist CSV export: emailed recipient, cron cadence, and an optional role filter. */
+			'export'            => array(
+				/* Recipient email for the scheduled/emailed pricelist. Empty = site admin_email at send time. */
+				'recipient' => '',
+				/* Cron cadence: 'off' (no scheduled export), 'daily', or 'weekly'. */
+				'schedule'  => 'off',
+				/* Limit the export to users in these WP roles. Empty = every user in the system. */
+				'roles'     => array(),
+			),
 		);
 	}
 
@@ -376,6 +385,32 @@ class Config {
 	 */
 	public function manager() {
 		return self::MANAGER;
+	}
+
+	/**
+	 * Pricelist-export settings, normalized: emailed recipient, cron cadence, and an
+	 * optional role filter. The wc_pricebook_export_settings filter is the escape hatch
+	 * (e.g. to force a recipient in code).
+	 *
+	 * @return array{recipient:string,schedule:string,roles:array<int,string>}
+	 */
+	public function export() {
+		$export   = isset( $this->all()['export'] ) && is_array( $this->all()['export'] ) ? $this->all()['export'] : array();
+		$schedule = isset( $export['schedule'] ) ? (string) $export['schedule'] : 'off';
+		$settings = array(
+			'recipient' => isset( $export['recipient'] ) ? (string) $export['recipient'] : '',
+			'schedule'  => in_array( $schedule, array( 'off', 'daily', 'weekly' ), true ) ? $schedule : 'off',
+			'roles'     => isset( $export['roles'] ) && is_array( $export['roles'] )
+				? array_values( array_unique( array_filter( array_map( 'sanitize_key', $export['roles'] ) ) ) )
+				: array(),
+		);
+
+		/**
+		 * Filters the pricelist-export settings.
+		 *
+		 * @param array{recipient:string,schedule:string,roles:array<int,string>} $settings Export settings.
+		 */
+		return apply_filters( 'wc_pricebook_export_settings', $settings );
 	}
 
 	/**

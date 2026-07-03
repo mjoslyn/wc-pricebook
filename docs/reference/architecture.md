@@ -16,6 +16,7 @@ PSR-4 `WCPricebook\` → `src/`.
 | `src/Admin/UserProfile.php` | Per-user My Products / include-exclude / category roles |
 | `src/Switcher/` | Manager admin-bar pricing switcher |
 | `src/Flowchart/Flowchart.php` | `/price-flowchart` debug page |
+| `src/Export/` | [Pricelist export](/reference/pricelist-export): CSV of every user's resolved price (WP-CLI, cron, "Send now") |
 
 ## Design rule
 

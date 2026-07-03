@@ -94,72 +94,10 @@
 		}
 	}
 
-	/**
-	 * Toggle a repeater item's accordion open/closed when its header is clicked.
-	 *
-	 * @param {Event} event Click event.
-	 */
-	function onAccordionToggle( event ) {
-		var btn = event.target.closest ? event.target.closest( '[data-accordion-toggle]' ) : null;
-		if ( ! btn ) {
-			return;
-		}
-		event.preventDefault();
-		var item = btn.closest( '.wc-pricebook-repeater__item' );
-		if ( ! item ) {
-			return;
-		}
-		var collapsed = item.classList.toggle( 'is-collapsed' );
-		btn.setAttribute( 'aria-expanded', collapsed ? 'false' : 'true' );
-	}
-
-	/**
-	 * Live-update an item's accordion title as its Label/Name field is typed.
-	 *
-	 * @param {Event} event Input event.
-	 */
-	function onTitleInput( event ) {
-		var input = event.target;
-		if ( ! input || ! input.hasAttribute || ! input.hasAttribute( 'data-accordion-title-source' ) ) {
-			return;
-		}
-		var item = input.closest( '.wc-pricebook-repeater__item' );
-		if ( ! item ) {
-			return;
-		}
-		var title = item.querySelector( '[data-accordion-title]' );
-		if ( ! title ) {
-			return;
-		}
-		title.textContent = input.value.trim() || title.getAttribute( 'data-empty-label' ) || 'Untitled';
-	}
-
-	/**
-	 * Collapse a repeater item (used to tidy server-rendered rows on load).
-	 *
-	 * @param {HTMLElement} item Repeater item.
-	 */
-	function collapseItem( item ) {
-		item.classList.add( 'is-collapsed' );
-		var toggle = item.querySelector( '[data-accordion-toggle]' );
-		if ( toggle ) {
-			toggle.setAttribute( 'aria-expanded', 'false' );
-		}
-	}
-
 	document.addEventListener( 'DOMContentLoaded', function () {
 		var repeaters = document.querySelectorAll( '[data-repeater]' );
 		Array.prototype.forEach.call( repeaters, initRepeater );
 		document.addEventListener( 'click', onClick );
-		document.addEventListener( 'click', onAccordionToggle );
 		document.addEventListener( 'change', onModeChange );
-		document.addEventListener( 'input', onTitleInput );
-
-		// Start with existing rows collapsed for a scannable overview; newly added
-		// rows stay open (initRepeater focuses their first field).
-		Array.prototype.forEach.call(
-			document.querySelectorAll( '[data-repeater-list] > .wc-pricebook-repeater__item' ),
-			collapseItem
-		);
 	} );
 } )();

@@ -31,6 +31,23 @@ Point the plugin at a store's existing meta instead of its defaults:
 | `wc_pricebook_base_meta` | MSRP / base price meta key |
 | `wc_pricebook_bulk_pricing_meta` | Quantity-break meta key |
 
+## Pricing
+
+| Filter | Overrides |
+|---|---|
+| `wc_pricebook_tier_requires_explicit_sale_price` | Require a tier's own sale price to be "on sale" (default: fall back to the MSRP sale price when lower) |
+| `wc_pricebook_allow_zero_price` | Keep a resolved $0 as a real price. Default `false` blanks it to "Call for Price" — see [Price resolution](/concepts/resolution#zero-prices) |
+
+## Pricelist export
+
+Used by the [pricelist export](/reference/pricelist-export):
+
+| Filter | Overrides |
+|---|---|
+| `wc_pricebook_export_settings` | Recipient / schedule / role filter |
+| `wc_pricebook_export_product_ids` | The product refs included in the export |
+| `wc_pricebook_export_user_query` | The `WP_User_Query` args used to gather users |
+
 ## Example
 
 ```php
