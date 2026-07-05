@@ -141,6 +141,36 @@ class ProductMeta {
 	}
 
 	/**
+	 * The currency symbol (decoded to a plain character) for repeater summaries.
+	 *
+	 * @return string
+	 */
+	private function currency_symbol() {
+		return function_exists( 'get_woocommerce_currency_symbol' )
+			? html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' )
+			: '';
+	}
+
+	/**
+	 * Render a collapsible repeater card header (chevron + live summary + remove).
+	 * The summary text is filled in by settings.js from the row's fields.
+	 *
+	 * @param string $remove_label Accessible label for the remove control.
+	 * @return void
+	 */
+	private function card_header( $remove_label ) {
+		?>
+		<div class="wc-pricebook-repeater__header">
+			<button type="button" class="wc-pricebook-repeater__toggle" data-repeater-toggle aria-expanded="false">
+				<span class="wc-pricebook-repeater__chevron dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>
+				<span class="wc-pricebook-repeater__summary" data-repeater-summary></span>
+			</button>
+			<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php echo esc_attr( $remove_label ); ?>"></a>
+		</div>
+		<?php
+	}
+
+	/**
 	 * Render the panel.
 	 *
 	 * @return void
@@ -152,38 +182,71 @@ class ProductMeta {
 		?>
 		<div id="wc_pricebook_role_prices" class="panel woocommerce_options_panel">
 			<?php wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD ); ?>
-			<div class="options_group">
-				<?php if ( empty( $tiers ) ) : ?>
-					<p class="form-field"><?php esc_html_e( 'No pricing tiers configured.', 'wc-pricebook' ); ?></p>
-				<?php else : ?>
-					<div class="wc-pricebook-roles" data-repeater>
-						<div data-repeater-list>
-							<?php
-							$index = 0;
-							foreach ( $tiers as $key => $tier ) {
-								$value = (string) get_post_meta( $post->ID, $tier['price_meta'], true );
-								$sale  = (string) get_post_meta( $post->ID, $tier['sale_meta'], true );
-								if ( '' === $value && '' === $sale ) {
-									continue;
+
+			<?php
+			// Sub-tabs within the (already tabbed) WooCommerce product-data panel. All
+			// panels stay in the product form, so switching only shows/hides them (JS);
+			// every field still posts together on Update. Slugs are prefixed "pb-" so
+			// they never collide with the settings page tabs (shared sessionStorage key).
+			$subtabs = array(
+				'pb-prices'     => __( 'Prices', 'wc-pricebook' ),
+				'pb-visibility' => __( 'Visibility', 'wc-pricebook' ),
+				'pb-rules'      => __( 'Rules', 'wc-pricebook' ),
+			);
+			?>
+			<nav class="nav-tab-wrapper wc-pricebook-tabs wc-pricebook-subtabs" data-pricebook-tabs>
+				<?php
+				$first = true;
+				foreach ( $subtabs as $slug => $label ) :
+					?>
+					<a href="#<?php echo esc_attr( $slug ); ?>" class="nav-tab<?php echo $first ? ' nav-tab-active' : ''; ?>" data-pricebook-tab="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $label ); ?></a>
+					<?php
+					$first = false;
+				endforeach;
+				?>
+			</nav>
+
+			<div class="wc-pricebook-tab-panel is-active" data-pricebook-panel="pb-prices">
+				<div class="options_group">
+					<p class="form-field wc-pricebook-group-title"><strong><?php esc_html_e( 'Manual role prices', 'wc-pricebook' ); ?></strong></p>
+					<?php if ( empty( $tiers ) ) : ?>
+						<p class="form-field"><?php esc_html_e( 'No pricing tiers configured.', 'wc-pricebook' ); ?></p>
+					<?php else : ?>
+						<div class="wc-pricebook-roles" data-repeater data-repeater-kind="role-price" data-currency="<?php echo esc_attr( $this->currency_symbol() ); ?>">
+							<div data-repeater-list>
+								<?php
+								$index = 0;
+								foreach ( $tiers as $key => $tier ) {
+									$value = (string) get_post_meta( $post->ID, $tier['price_meta'], true );
+									$sale  = (string) get_post_meta( $post->ID, $tier['sale_meta'], true );
+									if ( '' === $value && '' === $sale ) {
+										continue;
+									}
+									$this->render_row( (string) $index, $key, $value, $sale );
+									$index++;
 								}
-								$this->render_row( (string) $index, $key, $value, $sale );
-								$index++;
-							}
-							?>
+								?>
+							</div>
+							<template data-repeater-template>
+								<?php $this->render_row( '__INDEX__', '', '', '' ); ?>
+							</template>
+							<p class="form-field">
+								<button type="button" class="button" data-repeater-add><?php esc_html_e( 'Add role price', 'wc-pricebook' ); ?></button>
+							</p>
 						</div>
-						<template data-repeater-template>
-							<?php $this->render_row( '__INDEX__', '', '', '' ); ?>
-						</template>
-						<p class="form-field">
-							<button type="button" class="button" data-repeater-add><?php esc_html_e( 'Add role price', 'wc-pricebook' ); ?></button>
-						</p>
-					</div>
-				<?php endif; ?>
+					<?php endif; ?>
+				</div>
+				<?php $this->render_bulk_pricing_group( (int) $post->ID ); ?>
+				<?php $this->render_user_pricing_group( (int) $post->ID ); ?>
 			</div>
-			<?php $this->render_bulk_pricing_group( (int) $post->ID ); ?>
-			<?php $this->render_user_pricing_group( (int) $post->ID ); ?>
-			<?php $this->render_force_roles_group( (int) $post->ID ); ?>
-			<?php $this->render_rule_flags_group( (int) $post->ID ); ?>
+
+			<div class="wc-pricebook-tab-panel" data-pricebook-panel="pb-visibility">
+				<?php $this->render_force_roles_group( (int) $post->ID ); ?>
+			</div>
+
+			<div class="wc-pricebook-tab-panel" data-pricebook-panel="pb-rules">
+				<?php $this->render_rule_flags_group( (int) $post->ID ); ?>
+			</div>
 		</div>
 		<?php
 	}
@@ -224,16 +287,18 @@ class ProductMeta {
 	private function render_rule_flags_group( $product_id ) {
 		?>
 		<div class="options_group">
-			<p class="form-field"><strong><?php esc_html_e( 'Pricing rules', 'wc-pricebook' ); ?></strong></p>
-			<?php foreach ( $this->rule_flags() as $rule => $meta ) : ?>
-				<p class="form-field">
-					<label>
+			<p class="form-field wc-pricebook-group-title"><strong><?php esc_html_e( 'Pricing rules', 'wc-pricebook' ); ?></strong></p>
+			<div class="wc-pricebook-toggles">
+				<?php foreach ( $this->rule_flags() as $rule => $meta ) : ?>
+					<label class="wc-pricebook-toggle">
 						<input type="checkbox" name="<?php echo esc_attr( 'wc_pricebook_rule[' . $rule . ']' ); ?>" value="1" <?php checked( '1', (string) get_post_meta( $product_id, \WCPricebook\Rules::flag_meta_key( $rule ), true ) ); ?>>
-						<?php echo esc_html( $meta[0] ); ?>
+						<span class="wc-pricebook-toggle__text">
+							<span class="wc-pricebook-toggle__title"><?php echo esc_html( $meta[0] ); ?></span>
+							<span class="wc-pricebook-toggle__desc"><?php echo esc_html( $meta[1] ); ?></span>
+						</span>
 					</label>
-					<span class="description" style="display:block;"><?php echo esc_html( $meta[1] ); ?></span>
-				</p>
-			<?php endforeach; ?>
+				<?php endforeach; ?>
+			</div>
 		</div>
 		<?php
 	}
@@ -290,7 +355,7 @@ class ProductMeta {
 		$fp_users = is_array( $fp_users ) ? array_map( 'intval', $fp_users ) : array();
 		?>
 		<div class="options_group">
-			<p class="form-field"><strong><?php esc_html_e( 'Force visibility overrides', 'wc-pricebook' ); ?></strong></p>
+			<p class="form-field wc-pricebook-group-title"><strong><?php esc_html_e( 'Force visibility overrides', 'wc-pricebook' ); ?></strong></p>
 			<p class="form-field">
 				<label><?php esc_html_e( 'Force product visible to roles', 'wc-pricebook' ); ?></label>
 				<?php $this->render_role_select( 'wc_pricebook_force_visible_roles', $fv_roles ); ?>
@@ -384,9 +449,9 @@ class ProductMeta {
 		}
 		?>
 		<div class="options_group">
-			<p class="form-field"><strong><?php esc_html_e( 'Bulk pricing (quantity breaks)', 'wc-pricebook' ); ?></strong></p>
+			<p class="form-field wc-pricebook-group-title"><strong><?php esc_html_e( 'Bulk pricing (quantity breaks)', 'wc-pricebook' ); ?></strong></p>
 			<p class="form-field"><?php esc_html_e( 'Per-role price from a quantity upward. Applied in the cart and shown on the product page.', 'wc-pricebook' ); ?></p>
-			<div class="wc-pricebook-bulk-prices" data-repeater>
+			<div class="wc-pricebook-bulk-prices" data-repeater data-repeater-kind="bulk" data-currency="<?php echo esc_attr( $this->currency_symbol() ); ?>">
 				<div data-repeater-list>
 					<?php
 					$index = 0;
@@ -457,32 +522,33 @@ class ProductMeta {
 	private function render_bulk_row( $index, $role, $min_qty, $max_qty, $price ) {
 		$base = 'pricebook_bulk_price[' . $index . ']';
 		?>
-		<div class="wc-pricebook-role-row" data-repeater-item>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Role', 'wc-pricebook' ); ?></label>
-				<select name="<?php echo esc_attr( $base . '[role]' ); ?>">
-					<option value=""><?php esc_html_e( '— Select —', 'wc-pricebook' ); ?></option>
-					<?php foreach ( $this->bulk_target_options( $role ) as $key => $label ) : ?>
-						<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $key, $role ); ?>><?php echo esc_html( $label ); ?></option>
-					<?php endforeach; ?>
-				</select>
-			</p>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Min quantity', 'wc-pricebook' ); ?></label>
-				<input type="number" step="1" min="1" name="<?php echo esc_attr( $base . '[min_qty]' ); ?>" value="<?php echo esc_attr( $min_qty ); ?>">
-			</p>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Max quantity', 'wc-pricebook' ); ?></label>
-				<input type="number" step="1" min="1" name="<?php echo esc_attr( $base . '[max_qty]' ); ?>" value="<?php echo esc_attr( $max_qty ); ?>" placeholder="<?php esc_attr_e( 'No limit', 'wc-pricebook' ); ?>">
-			</p>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Price', 'wc-pricebook' ); ?></label>
-				<input type="number" step="0.0001" name="<?php echo esc_attr( $base . '[price]' ); ?>" value="<?php echo esc_attr( $price ); ?>">
-			</p>
-			<p class="form-field">
-				<label>&nbsp;</label>
-				<a href="#" class="wc-pricebook-role-row__remove" data-repeater-remove role="button"><?php esc_html_e( 'Remove', 'wc-pricebook' ); ?></a>
-			</p>
+		<div class="wc-pricebook-repeater__item" data-repeater-item>
+			<?php $this->card_header( __( 'Remove quantity break', 'wc-pricebook' ) ); ?>
+			<div class="wc-pricebook-repeater__body">
+				<div class="wc-pricebook-repeater__grid">
+					<div class="wc-pricebook-field wc-pricebook-field--full">
+						<label><?php esc_html_e( 'Role', 'wc-pricebook' ); ?></label>
+						<select name="<?php echo esc_attr( $base . '[role]' ); ?>">
+							<option value=""><?php esc_html_e( '— Select —', 'wc-pricebook' ); ?></option>
+							<?php foreach ( $this->bulk_target_options( $role ) as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $key, $role ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="wc-pricebook-field">
+						<label><?php esc_html_e( 'Min quantity', 'wc-pricebook' ); ?></label>
+						<input type="number" step="1" min="1" name="<?php echo esc_attr( $base . '[min_qty]' ); ?>" value="<?php echo esc_attr( $min_qty ); ?>">
+					</div>
+					<div class="wc-pricebook-field">
+						<label><?php esc_html_e( 'Max quantity', 'wc-pricebook' ); ?></label>
+						<input type="number" step="1" min="1" name="<?php echo esc_attr( $base . '[max_qty]' ); ?>" value="<?php echo esc_attr( $max_qty ); ?>" placeholder="<?php esc_attr_e( 'No limit', 'wc-pricebook' ); ?>">
+					</div>
+					<div class="wc-pricebook-field">
+						<label><?php esc_html_e( 'Price', 'wc-pricebook' ); ?></label>
+						<input type="number" step="0.0001" name="<?php echo esc_attr( $base . '[price]' ); ?>" value="<?php echo esc_attr( $price ); ?>">
+					</div>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -506,9 +572,9 @@ class ProductMeta {
 		$rows = is_array( $rows ) ? $rows : array();
 		?>
 		<div class="options_group">
-			<p class="form-field"><strong><?php esc_html_e( 'Customer-specific prices', 'wc-pricebook' ); ?></strong></p>
+			<p class="form-field wc-pricebook-group-title"><strong><?php esc_html_e( 'Customer-specific prices', 'wc-pricebook' ); ?></strong></p>
 			<p class="form-field"><?php esc_html_e( 'A price set here for a customer overrides every tier and role price for that customer.', 'wc-pricebook' ); ?></p>
-			<div class="wc-pricebook-user-prices" data-repeater>
+			<div class="wc-pricebook-user-prices" data-repeater data-repeater-kind="user-price" data-currency="<?php echo esc_attr( $this->currency_symbol() ); ?>">
 				<div data-repeater-list>
 					<?php
 					$index = 0;
@@ -544,30 +610,31 @@ class ProductMeta {
 		$base = 'pricebook_user_price[' . $index . ']';
 		$user = $user_id > 0 ? get_userdata( $user_id ) : false;
 		?>
-		<div class="wc-pricebook-role-row" data-repeater-item>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Customer', 'wc-pricebook' ); ?></label>
-				<select
-					class="wc-customer-search"
-					name="<?php echo esc_attr( $base . '[user-id]' ); ?>"
-					data-placeholder="<?php esc_attr_e( 'Search for a customer&hellip;', 'wc-pricebook' ); ?>"
-					data-allow_clear="true"
-					style="width:100%;">
-					<?php if ( $user ) : ?>
-						<option value="<?php echo esc_attr( (string) $user_id ); ?>" selected="selected">
-							<?php echo esc_html( sprintf( '%1$s (#%2$d &ndash; %3$s)', $user->display_name, $user_id, $user->user_email ) ); ?>
-						</option>
-					<?php endif; ?>
-				</select>
-			</p>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Price', 'wc-pricebook' ); ?></label>
-				<input type="number" step="0.0001" name="<?php echo esc_attr( $base . '[price]' ); ?>" value="<?php echo esc_attr( $price ); ?>">
-			</p>
-			<p class="form-field">
-				<label>&nbsp;</label>
-				<a href="#" class="wc-pricebook-role-row__remove" data-repeater-remove role="button"><?php esc_html_e( 'Remove', 'wc-pricebook' ); ?></a>
-			</p>
+		<div class="wc-pricebook-repeater__item" data-repeater-item>
+			<?php $this->card_header( __( 'Remove customer price', 'wc-pricebook' ) ); ?>
+			<div class="wc-pricebook-repeater__body">
+				<div class="wc-pricebook-repeater__grid">
+					<div class="wc-pricebook-field wc-pricebook-field--full">
+						<label><?php esc_html_e( 'Customer', 'wc-pricebook' ); ?></label>
+						<select
+							class="wc-customer-search"
+							name="<?php echo esc_attr( $base . '[user-id]' ); ?>"
+							data-placeholder="<?php esc_attr_e( 'Search for a customer&hellip;', 'wc-pricebook' ); ?>"
+							data-allow_clear="true"
+							style="width:100%;">
+							<?php if ( $user ) : ?>
+								<option value="<?php echo esc_attr( (string) $user_id ); ?>" selected="selected">
+									<?php echo esc_html( sprintf( '%1$s (#%2$d &ndash; %3$s)', $user->display_name, $user_id, $user->user_email ) ); ?>
+								</option>
+							<?php endif; ?>
+						</select>
+					</div>
+					<div class="wc-pricebook-field">
+						<label><?php esc_html_e( 'Price', 'wc-pricebook' ); ?></label>
+						<input type="number" step="0.0001" name="<?php echo esc_attr( $base . '[price]' ); ?>" value="<?php echo esc_attr( $price ); ?>">
+					</div>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -584,28 +651,29 @@ class ProductMeta {
 	private function render_row( $index, $role, $price, $sale ) {
 		$base = 'pricebook_role_price[' . $index . ']';
 		?>
-		<div class="wc-pricebook-role-row" data-repeater-item>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Role', 'wc-pricebook' ); ?></label>
-				<select name="<?php echo esc_attr( $base . '[role]' ); ?>">
-					<option value=""><?php esc_html_e( '— Select —', 'wc-pricebook' ); ?></option>
-					<?php foreach ( $this->tier_options( $this->bulk_roles ) as $key => $label ) : ?>
-						<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $key, $role ); ?>><?php echo esc_html( $label ); ?></option>
-					<?php endforeach; ?>
-				</select>
-			</p>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Price', 'wc-pricebook' ); ?></label>
-				<input type="number" step="0.0001" name="<?php echo esc_attr( $base . '[price]' ); ?>" value="<?php echo esc_attr( $price ); ?>">
-			</p>
-			<p class="form-field">
-				<label><?php esc_html_e( 'Sale price', 'wc-pricebook' ); ?></label>
-				<input type="number" step="0.0001" name="<?php echo esc_attr( $base . '[sale]' ); ?>" value="<?php echo esc_attr( $sale ); ?>">
-			</p>
-			<p class="form-field">
-				<label>&nbsp;</label>
-				<a href="#" class="wc-pricebook-role-row__remove" data-repeater-remove role="button"><?php esc_html_e( 'Remove', 'wc-pricebook' ); ?></a>
-			</p>
+		<div class="wc-pricebook-repeater__item" data-repeater-item>
+			<?php $this->card_header( __( 'Remove role price', 'wc-pricebook' ) ); ?>
+			<div class="wc-pricebook-repeater__body">
+				<div class="wc-pricebook-repeater__grid">
+					<div class="wc-pricebook-field wc-pricebook-field--full">
+						<label><?php esc_html_e( 'Role', 'wc-pricebook' ); ?></label>
+						<select name="<?php echo esc_attr( $base . '[role]' ); ?>">
+							<option value=""><?php esc_html_e( '— Select —', 'wc-pricebook' ); ?></option>
+							<?php foreach ( $this->tier_options( $this->bulk_roles ) as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $key, $role ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="wc-pricebook-field">
+						<label><?php esc_html_e( 'Price', 'wc-pricebook' ); ?></label>
+						<input type="number" step="0.0001" name="<?php echo esc_attr( $base . '[price]' ); ?>" value="<?php echo esc_attr( $price ); ?>">
+					</div>
+					<div class="wc-pricebook-field">
+						<label><?php esc_html_e( 'Sale price', 'wc-pricebook' ); ?></label>
+						<input type="number" step="0.0001" name="<?php echo esc_attr( $base . '[sale]' ); ?>" value="<?php echo esc_attr( $sale ); ?>">
+					</div>
+				</div>
+			</div>
 		</div>
 		<?php
 	}

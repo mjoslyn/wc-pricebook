@@ -1,28 +1,180 @@
-/* Pricebook settings repeater UI. */
+/* ============================================================
+ * Pricebook settings page (WooCommerce → Pricebook)
+ * ============================================================ */
 
+.wc-pricebook-settings .nav-tab-wrapper.wc-pricebook-tabs {
+	margin-bottom: 20px;
+}
+
+/* Tab panels: only the active one shows (JS toggles .is-active). All panels
+ * stay in the single form so every field posts together on Save. */
+.wc-pricebook-tab-panel {
+	display: none;
+}
+
+.wc-pricebook-tab-panel.is-active {
+	display: block;
+}
+
+/* Section heading row (tiers / visibility): text on the left, Add on the right. */
+.wc-pricebook-panel-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	max-width: 980px;
+	margin: 0 0 14px;
+}
+
+.wc-pricebook-panel-head__text {
+	max-width: 660px;
+}
+
+.wc-pricebook-panel-head h2 {
+	margin: 0 0 4px;
+	font-size: 15px;
+}
+
+.wc-pricebook-panel-head .description {
+	margin: 0;
+}
+
+.wc-pricebook-repeater__add {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	white-space: nowrap;
+}
+
+.wc-pricebook-repeater__add .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+	line-height: 1;
+}
+
+/* ---- Repeater cards (tiers / visibility roles) ---- */
 .wc-pricebook-repeater {
-	margin: 0 0 1.5em;
+	max-width: 980px;
+	margin: 0 0 1em;
 }
 
 .wc-pricebook-repeater__list {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 10px;
 }
 
 .wc-pricebook-repeater__item {
-	position: relative;
-	padding: 16px 44px 8px 16px;
-	border: 1px solid #c3c4c7;
-	border-left: 4px solid #2271b1;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
 	background: #fff;
-	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba( 0, 0, 0, .04 );
+	overflow: hidden;
+}
+
+.wc-pricebook-repeater__item.is-open {
+	box-shadow: 0 1px 4px rgba( 0, 0, 0, .08 );
+	border-color: #c3c4c7;
+}
+
+/* Clickable header bar = chevron + live summary, plus a remove control. */
+.wc-pricebook-repeater__header {
+	display: flex;
+	align-items: center;
+}
+
+.wc-pricebook-repeater__toggle {
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	margin: 0;
+	padding: 12px 14px;
+	background: none;
+	border: 0;
+	cursor: pointer;
+	text-align: left;
+	font: inherit;
+	color: inherit;
+}
+
+.wc-pricebook-repeater__toggle:hover {
+	background: #f6f7f7;
+}
+
+.wc-pricebook-repeater__toggle:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: -2px;
+}
+
+.wc-pricebook-repeater__chevron {
+	flex: 0 0 auto;
+	color: #787c82;
+	line-height: 1;
+	transition: transform .12s ease;
+}
+
+.is-open .wc-pricebook-repeater__chevron {
+	transform: rotate( 90deg );
+}
+
+.wc-pricebook-repeater__summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 3px 10px;
+	min-width: 0;
+}
+
+.wc-pricebook-repeater__summary-title {
+	font-weight: 600;
+	font-size: 14px;
+}
+
+.wc-pricebook-repeater__summary-title.is-empty {
+	font-weight: 500;
+	font-style: italic;
+	color: #787c82;
+}
+
+.wc-pricebook-repeater__summary-meta {
+	font-size: 12px;
+	color: #646970;
+}
+
+.wc-pricebook-repeater__remove {
+	flex: 0 0 auto;
+	margin: 0 12px 0 4px;
+	color: #b32d2e;
+	text-decoration: none;
+	opacity: .65;
+}
+
+.wc-pricebook-repeater__remove:hover,
+.wc-pricebook-repeater__remove:focus {
+	opacity: 1;
+	color: #8a2424;
+}
+
+/* Card body: revealed when the card is open. Hidden inputs still post. */
+.wc-pricebook-repeater__body {
+	display: none;
+	padding: 2px 16px 18px;
+	border-top: 1px solid #f0f0f1;
+}
+
+.is-open .wc-pricebook-repeater__body {
+	display: block;
 }
 
 .wc-pricebook-repeater__grid {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(220px, 1fr));
-	gap: 12px 24px;
+	grid-template-columns: repeat( 2, minmax( 220px, 1fr ) );
+	gap: 14px 24px;
+	margin-top: 14px;
 }
 
 .wc-pricebook-field {
@@ -44,43 +196,24 @@
 	width: 100%;
 }
 
-/* Product Data panel: role/price rows using native .form-field styling. */
-.wc-pricebook-role-row {
-	position: relative;
-	padding: 6px 0 2px;
-	border-top: 1px solid #eee;
-}
-
-.wc-pricebook-role-row:first-child {
-	border-top: 0;
-}
-
-.wc-pricebook-role-row__remove {
-	color: #b32d2e;
-	text-decoration: none;
-}
-
-.wc-pricebook-role-row__remove:hover {
-	color: #8a2424;
-}
-
 .wc-pricebook-field .description {
 	margin: 0;
 	font-size: 12px;
 }
 
+/* Category-scope sets inside a card. */
 .wc-pricebook-tier-categories {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(220px, 1fr));
+	grid-template-columns: repeat( 2, minmax( 220px, 1fr ) );
 	gap: 16px 24px;
-	margin-top: 12px;
-	padding-top: 12px;
+	margin-top: 14px;
+	padding-top: 14px;
 	border-top: 1px solid #f0f0f1;
 }
 
 .wc-pricebook-catset {
 	margin: 0;
-	padding: 8px 0 0;
+	padding: 0;
 	border: 0;
 }
 
@@ -108,21 +241,179 @@
 	background: #fff;
 }
 
-.wc-pricebook-repeater__remove {
-	position: absolute;
-	top: 10px;
-	right: 10px;
-	color: #b32d2e;
-	text-decoration: none;
+/* ---- General tab ---- */
+.wc-pricebook-section {
+	max-width: 820px;
+	margin: 0 0 28px;
+}
+
+.wc-pricebook-section > h2 {
+	margin: 0 0 4px;
+	font-size: 15px;
+}
+
+.wc-pricebook-section > .description {
+	margin: 0 0 12px;
+}
+
+.wc-pricebook-toggles {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.wc-pricebook-toggle {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	padding: 12px 14px;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #fff;
 	cursor: pointer;
 }
 
-.wc-pricebook-repeater__remove:hover {
-	color: #8a2424;
+.wc-pricebook-toggle:hover {
+	border-color: #c3c4c7;
+	background: #fdfdfd;
 }
 
-.wc-pricebook-repeater__add {
-	margin-top: 12px;
+.wc-pricebook-toggle input {
+	margin-top: 3px;
+}
+
+.wc-pricebook-toggle__text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.wc-pricebook-toggle__title {
+	font-weight: 600;
+}
+
+.wc-pricebook-toggle__desc {
+	font-size: 12px;
+	color: #646970;
+}
+
+.wc-pricebook-shortcodes {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.wc-pricebook-shortcode {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 8px 14px;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.wc-pricebook-shortcode__label {
+	font-weight: 600;
+}
+
+.wc-pricebook-shortcode code {
+	background: #f0f0f1;
+	padding: 3px 8px;
+	border-radius: 4px;
+}
+
+/* ============================================================
+ * Repeater cards & toggles inside the WooCommerce product-data panel.
+ * The panel floats native .form-field labels/inputs, so neutralize that
+ * within our card fields and give our custom (non .form-field) containers
+ * the panel's 20px side padding.
+ * ============================================================ */
+.woocommerce_options_panel .wc-pricebook-repeater,
+.woocommerce_options_panel .wc-pricebook-toggles {
+	max-width: none;
+	margin: 0;
+	padding: 0 20px 12px;
+}
+
+/* Scope through the panel's ID so this outranks WC's class-based .form-field rule,
+ * whose `padding-left: 162px` (the label column) would otherwise indent the heading
+ * into the input column. */
+#wc_pricebook_role_prices .wc-pricebook-group-title {
+	/* WC sets the .form-field label-column padding with !important, so match it. */
+	padding-left: 20px !important;
+	margin-bottom: 2px;
+	text-align: left;
+}
+
+#wc_pricebook_role_prices .wc-pricebook-group-title strong {
+	font-size: 16px;
+}
+
+.woocommerce_options_panel .wc-pricebook-field,
+.woocommerce_options_panel .wc-pricebook-field label {
+	float: none;
+	width: auto;
+	margin: 0;
+	padding: 0;
+}
+
+.woocommerce_options_panel .wc-pricebook-field input,
+.woocommerce_options_panel .wc-pricebook-field select {
+	float: none;
+	width: 100%;
+	margin: 0;
+}
+
+.woocommerce_options_panel .wc-pricebook-field .select2-container {
+	width: 100% !important;
+}
+
+/* The panel floats <label>s; our toggle cards ARE labels, so keep them in flow. */
+.woocommerce_options_panel .wc-pricebook-toggle {
+	float: none;
+	width: auto;
+	margin: 0;
+}
+
+.woocommerce_options_panel .wc-pricebook-toggle input {
+	float: none;
+	width: auto;
+	margin: 3px 0 0;
+}
+
+/* Sub-tabs inside the product-data panel. The nav already draws a bottom rule,
+ * so drop the first group's top rule to avoid a doubled line under the tabs. */
+.wc-pricebook-subtabs {
+	margin: 0 0 4px;
+	padding: 8px 12px 0;
+}
+
+.woocommerce_options_panel .wc-pricebook-tab-panel > .options_group:first-child {
+	border-top: 0;
+}
+
+/* ============================================================
+ * Product Data panel: role/price rows (native .form-field styling).
+ * ============================================================ */
+.wc-pricebook-role-row {
+	position: relative;
+	padding: 6px 0 2px;
+	border-top: 1px solid #eee;
+}
+
+.wc-pricebook-role-row:first-child {
+	border-top: 0;
+}
+
+.wc-pricebook-role-row__remove {
+	color: #b32d2e;
+	text-decoration: none;
+}
+
+.wc-pricebook-role-row__remove:hover {
+	color: #8a2424;
 }
 
 /* Catalog/product-page bulk (quantity-break) pricing table. */
@@ -165,9 +456,4 @@
 	display: block;
 	font-weight: 600;
 	margin-bottom: 4px;
-}
-
-.wc-pricebook-role-row__remove {
-	color: #b32d2e;
-	text-decoration: none;
 }

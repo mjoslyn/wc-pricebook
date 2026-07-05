@@ -318,51 +318,133 @@ class Settings {
 		$c          = $this->config->all();
 		$name       = Config::OPTION;
 		$shortcodes = $this->config->shortcodes();
+		$tabs       = array(
+			'tiers'      => __( 'Pricing Tiers', 'wc-pricebook' ),
+			'visibility' => __( 'Visibility', 'wc-pricebook' ),
+			'general'    => __( 'General', 'wc-pricebook' ),
+			'export'     => __( 'Export', 'wc-pricebook' ),
+		);
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'WC Pricebook', 'wc-pricebook' ); ?></h1>
+		<div class="wrap wc-pricebook-settings">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'WC Pricebook', 'wc-pricebook' ); ?></h1>
+			<hr class="wp-header-end">
+			<?php
+			// Custom (non options-general) pages don't get WP's automatic "Settings
+			// saved." notice, so add it when options.php redirects back after a save.
+			if ( isset( $_GET['settings-updated'] ) && 'true' === sanitize_key( wp_unslash( $_GET['settings-updated'] ) ) ) {
+				add_settings_error( self::GROUP, 'wc_pricebook_saved', __( 'Settings saved.', 'wc-pricebook' ), 'updated' );
+			}
+			settings_errors();
+			?>
+
+			<nav class="nav-tab-wrapper wc-pricebook-tabs" data-pricebook-tabs>
+				<?php
+				$first = true;
+				foreach ( $tabs as $slug => $label ) :
+					?>
+					<a href="#<?php echo esc_attr( $slug ); ?>" class="nav-tab<?php echo $first ? ' nav-tab-active' : ''; ?>" data-pricebook-tab="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $label ); ?></a>
+					<?php
+					$first = false;
+				endforeach;
+				?>
+			</nav>
+
 			<form method="post" action="options.php">
 				<?php settings_fields( self::GROUP ); ?>
 
-				<?php $this->render_tiers( $name, is_array( $c['tiers'] ) ? $c['tiers'] : array() ); ?>
+				<div class="wc-pricebook-tab-panel is-active" data-pricebook-panel="tiers">
+					<?php $this->render_tiers( $name, is_array( $c['tiers'] ) ? $c['tiers'] : array() ); ?>
+				</div>
 
-				<?php $this->render_visibility_roles( $name, is_array( $c['visibility_roles'] ?? null ) ? $c['visibility_roles'] : array() ); ?>
+				<div class="wc-pricebook-tab-panel" data-pricebook-panel="visibility">
+					<?php $this->render_visibility_roles( $name, is_array( $c['visibility_roles'] ?? null ) ? $c['visibility_roles'] : array() ); ?>
+				</div>
 
-				<h2><?php esc_html_e( 'Modules', 'wc-pricebook' ); ?></h2>
-				<table class="form-table" role="presentation">
-					<tr>
-						<th><?php esc_html_e( 'Pricing-view switcher', 'wc-pricebook' ); ?></th>
-						<td><label><input type="checkbox" name="<?php echo esc_attr( $name ); ?>[modules][switcher]" value="1" <?php checked( $this->config->module_enabled( 'switcher' ) ); ?>> <?php esc_html_e( 'Enabled', 'wc-pricebook' ); ?></label></td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'Pricing flowchart', 'wc-pricebook' ); ?></th>
-						<td><label><input type="checkbox" name="<?php echo esc_attr( $name ); ?>[modules][flowchart]" value="1" <?php checked( $this->config->module_enabled( 'flowchart' ) ); ?>> <?php esc_html_e( 'Enabled (/price-flowchart)', 'wc-pricebook' ); ?></label></td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'Product tier prices (toolbar)', 'wc-pricebook' ); ?></th>
-						<td><label><input type="checkbox" name="<?php echo esc_attr( $name ); ?>[modules][product_prices]" value="1" <?php checked( $this->config->module_enabled( 'product_prices' ) ); ?>> <?php esc_html_e( 'Show a toolbar dropdown of each tier’s price on the current product', 'wc-pricebook' ); ?></label></td>
-					</tr>
-				</table>
+				<div class="wc-pricebook-tab-panel" data-pricebook-panel="general">
+					<?php $this->render_modules( $name ); ?>
+					<?php $this->render_shortcodes( $shortcodes ); ?>
+				</div>
 
-				<h2><?php esc_html_e( 'Shortcodes', 'wc-pricebook' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Shortcode tags are fixed. Paste these into any page or post.', 'wc-pricebook' ); ?></p>
-				<table class="form-table" role="presentation">
-					<tr>
-						<th><?php esc_html_e( 'Pricing table', 'wc-pricebook' ); ?></th>
-						<td><code>[<?php echo esc_html( $shortcodes['table'] ); ?>]</code></td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'User products', 'wc-pricebook' ); ?></th>
-						<td><code>[<?php echo esc_html( $shortcodes['products'] ); ?>]</code></td>
-					</tr>
-				</table>
+				<div class="wc-pricebook-tab-panel" data-pricebook-panel="export">
+					<?php $this->render_export_settings( $name, is_array( $c['export'] ?? null ) ? $c['export'] : array() ); ?>
+				</div>
 
-				<?php $this->render_export_settings( $name, is_array( $c['export'] ?? null ) ? $c['export'] : array() ); ?>
-
-				<?php submit_button(); ?>
+				<p class="submit wc-pricebook-actions">
+					<?php submit_button( '', 'primary', 'submit', false ); ?>
+				</p>
 			</form>
 
-			<?php $this->render_export_send_now( is_array( $c['export'] ?? null ) ? $c['export'] : array() ); ?>
+			<?php // "Send now" is its own form (posts to admin-post.php); tagged so the tab controller shows it only on the Export tab. ?>
+			<div class="wc-pricebook-tab-panel" data-pricebook-panel="export">
+				<?php $this->render_export_send_now( is_array( $c['export'] ?? null ) ? $c['export'] : array() ); ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the Modules toggles (General tab).
+	 *
+	 * @param string $name Option name prefix.
+	 * @return void
+	 */
+	private function render_modules( $name ) {
+		$modules = array(
+			'switcher'       => array(
+				__( 'Pricing-view switcher', 'wc-pricebook' ),
+				__( 'Adds a manager toolbar control to preview the store as any pricing tier.', 'wc-pricebook' ),
+			),
+			'flowchart'      => array(
+				__( 'Pricing flowchart', 'wc-pricebook' ),
+				__( 'Publishes the /price-flowchart diagnostic page.', 'wc-pricebook' ),
+			),
+			'product_prices' => array(
+				__( 'Product tier prices (toolbar)', 'wc-pricebook' ),
+				__( 'Shows a toolbar dropdown of each tier’s price on the current product.', 'wc-pricebook' ),
+			),
+		);
+		?>
+		<div class="wc-pricebook-section">
+			<h2><?php esc_html_e( 'Modules', 'wc-pricebook' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Turn optional plugin features on or off.', 'wc-pricebook' ); ?></p>
+			<div class="wc-pricebook-toggles">
+				<?php foreach ( $modules as $key => $meta ) : ?>
+					<label class="wc-pricebook-toggle">
+						<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[modules][<?php echo esc_attr( $key ); ?>]" value="1" <?php checked( $this->config->module_enabled( $key ) ); ?>>
+						<span class="wc-pricebook-toggle__text">
+							<span class="wc-pricebook-toggle__title"><?php echo esc_html( $meta[0] ); ?></span>
+							<span class="wc-pricebook-toggle__desc"><?php echo esc_html( $meta[1] ); ?></span>
+						</span>
+					</label>
+				<?php endforeach; ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the fixed shortcode reference (General tab).
+	 *
+	 * @param array<string,string> $shortcodes Shortcode tag map.
+	 * @return void
+	 */
+	private function render_shortcodes( array $shortcodes ) {
+		$rows = array(
+			'table'    => __( 'Pricing table', 'wc-pricebook' ),
+			'products' => __( 'User products', 'wc-pricebook' ),
+		);
+		?>
+		<div class="wc-pricebook-section">
+			<h2><?php esc_html_e( 'Shortcodes', 'wc-pricebook' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Shortcode tags are fixed. Paste these into any page or post.', 'wc-pricebook' ); ?></p>
+			<div class="wc-pricebook-shortcodes">
+				<?php foreach ( $rows as $key => $label ) : ?>
+					<div class="wc-pricebook-shortcode">
+						<span class="wc-pricebook-shortcode__label"><?php echo esc_html( $label ); ?></span>
+						<code>[<?php echo esc_html( $shortcodes[ $key ] ); ?>]</code>
+					</div>
+				<?php endforeach; ?>
+			</div>
 		</div>
 		<?php
 	}
@@ -461,9 +543,14 @@ class Settings {
 		$categories = $this->product_categories();
 		$options    = $this->tier_field_options( $tiers );
 		?>
-		<h2><?php esc_html_e( 'Pricing Tiers', 'wc-pricebook' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Each tier maps a pricing role to its price meta keys. The tier key is used in URLs, the switcher, and fallback chains.', 'wc-pricebook' ); ?></p>
-		<div class="wc-pricebook-repeater" data-repeater>
+		<div class="wc-pricebook-repeater" data-repeater data-repeater-kind="tier">
+			<div class="wc-pricebook-panel-head">
+				<div class="wc-pricebook-panel-head__text">
+					<h2><?php esc_html_e( 'Pricing Tiers', 'wc-pricebook' ); ?></h2>
+					<p class="description"><?php esc_html_e( 'Each tier maps a pricing role to its price meta keys. The tier key is used in URLs, the switcher, and fallback chains.', 'wc-pricebook' ); ?></p>
+				</div>
+				<button type="button" class="button button-secondary wc-pricebook-repeater__add" data-repeater-add><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span> <?php esc_html_e( 'Add tier', 'wc-pricebook' ); ?></button>
+			</div>
 			<div class="wc-pricebook-repeater__list" data-repeater-list>
 				<?php
 				$index = 0;
@@ -476,7 +563,6 @@ class Settings {
 			<template data-repeater-template>
 				<?php $this->render_tier_row( $name, '__INDEX__', array(), $categories, $options ); ?>
 			</template>
-			<button type="button" class="button wc-pricebook-repeater__add" data-repeater-add><?php esc_html_e( 'Add tier', 'wc-pricebook' ); ?></button>
 		</div>
 		<?php
 	}
@@ -546,7 +632,14 @@ class Settings {
 		);
 		?>
 		<div class="wc-pricebook-repeater__item" data-repeater-item>
-			<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove tier', 'wc-pricebook' ); ?>"></a>
+			<div class="wc-pricebook-repeater__header">
+				<button type="button" class="wc-pricebook-repeater__toggle" data-repeater-toggle aria-expanded="false">
+					<span class="wc-pricebook-repeater__chevron dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>
+					<span class="wc-pricebook-repeater__summary" data-repeater-summary></span>
+				</button>
+				<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove tier', 'wc-pricebook' ); ?>"></a>
+			</div>
+			<div class="wc-pricebook-repeater__body">
 			<div class="wc-pricebook-repeater__grid">
 				<?php foreach ( $fields as $field => $meta ) : ?>
 					<div class="wc-pricebook-field<?php echo 'label' === $field ? ' wc-pricebook-field--full' : ''; ?>">
@@ -593,6 +686,7 @@ class Settings {
 				$this->render_category_set( $base . '[pricing_categories]', __( 'Pricing categories', 'wc-pricebook' ), __( 'Which products this tier prices.', 'wc-pricebook' ), $categories, $pricing );
 				?>
 			</div>
+			</div><?php // .wc-pricebook-repeater__body ?>
 		</div>
 		<?php
 	}
@@ -607,9 +701,14 @@ class Settings {
 	private function render_visibility_roles( $name, array $roles ) {
 		$categories = $this->product_categories();
 		?>
-		<h2><?php esc_html_e( 'Visibility roles', 'wc-pricebook' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Each visibility role controls which product categories its users can see, independent of pricing. Pick the roles it applies to and whether a user must match ANY or ALL of them; "MSRP Customer" matches shoppers with no pricing tier. A user’s own visibility settings (on their profile) override these.', 'wc-pricebook' ); ?></p>
-		<div class="wc-pricebook-repeater" data-repeater>
+		<div class="wc-pricebook-repeater" data-repeater data-repeater-kind="visibility">
+			<div class="wc-pricebook-panel-head">
+				<div class="wc-pricebook-panel-head__text">
+					<h2><?php esc_html_e( 'Visibility roles', 'wc-pricebook' ); ?></h2>
+					<p class="description"><?php esc_html_e( 'Each visibility role controls which product categories its users can see, independent of pricing. Pick the roles it applies to and whether a user must match ANY or ALL of them; "MSRP Customer" matches shoppers with no pricing tier. A user’s own visibility settings (on their profile) override these.', 'wc-pricebook' ); ?></p>
+				</div>
+				<button type="button" class="button button-secondary wc-pricebook-repeater__add" data-repeater-add><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span> <?php esc_html_e( 'Add visibility role', 'wc-pricebook' ); ?></button>
+			</div>
 			<div class="wc-pricebook-repeater__list" data-repeater-list>
 				<?php
 				$index = 0;
@@ -622,7 +721,6 @@ class Settings {
 			<template data-repeater-template>
 				<?php $this->render_visibility_role_row( $name, '__INDEX__', array(), $categories ); ?>
 			</template>
-			<button type="button" class="button wc-pricebook-repeater__add" data-repeater-add><?php esc_html_e( 'Add visibility role', 'wc-pricebook' ); ?></button>
 		</div>
 		<?php
 	}
@@ -641,7 +739,14 @@ class Settings {
 		$base = $name . '[visibility_roles][' . $index . ']';
 		?>
 		<div class="wc-pricebook-repeater__item" data-repeater-item>
-			<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove visibility role', 'wc-pricebook' ); ?>"></a>
+			<div class="wc-pricebook-repeater__header">
+				<button type="button" class="wc-pricebook-repeater__toggle" data-repeater-toggle aria-expanded="false">
+					<span class="wc-pricebook-repeater__chevron dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>
+					<span class="wc-pricebook-repeater__summary" data-repeater-summary></span>
+				</button>
+				<a href="#" class="wc-pricebook-repeater__remove dashicons dashicons-trash" data-repeater-remove role="button" aria-label="<?php esc_attr_e( 'Remove visibility role', 'wc-pricebook' ); ?>"></a>
+			</div>
+			<div class="wc-pricebook-repeater__body">
 			<div class="wc-pricebook-repeater__grid">
 				<div class="wc-pricebook-field wc-pricebook-field--full">
 					<label><?php esc_html_e( 'Name', 'wc-pricebook' ); ?></label>
@@ -707,6 +812,7 @@ class Settings {
 					<textarea class="large-text" rows="2" name="<?php echo esc_attr( $base . '[notes]' ); ?>"><?php echo esc_textarea( (string) ( $role['notes'] ?? '' ) ); ?></textarea>
 				</div>
 			</div>
+			</div><?php // .wc-pricebook-repeater__body ?>
 		</div>
 		<?php
 	}
