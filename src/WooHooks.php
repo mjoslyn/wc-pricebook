@@ -79,7 +79,7 @@ class WooHooks {
 		// Frontend product-archive visibility based on a user's include/exclude lists.
 		add_action( 'pre_get_posts', array( $this, 'filter_archive_visibility' ) );
 
-		if ( is_admin() ) {
+		if ( is_admin() && $this->config->module_enabled( 'admin_price_matrix' ) ) {
 			add_filter( 'manage_product_posts_custom_column', array( $this, 'render_admin_price_column' ), 99, 2 );
 			add_filter( 'woocommerce_admin_product_price_html', '__return_empty_string', 10, 2 );
 			add_action( 'admin_head', array( $this, 'admin_price_column_style' ) );

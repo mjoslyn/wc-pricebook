@@ -152,9 +152,10 @@ class Settings {
 		$out = $current;
 
 		// Modules.
-		$out['modules']['switcher']       = ! empty( $input['modules']['switcher'] );
-		$out['modules']['flowchart']      = ! empty( $input['modules']['flowchart'] );
-		$out['modules']['product_prices'] = ! empty( $input['modules']['product_prices'] );
+		$out['modules']['switcher']           = ! empty( $input['modules']['switcher'] );
+		$out['modules']['flowchart']          = ! empty( $input['modules']['flowchart'] );
+		$out['modules']['product_prices']     = ! empty( $input['modules']['product_prices'] );
+		$out['modules']['admin_price_matrix'] = ! empty( $input['modules']['admin_price_matrix'] );
 
 		// Base price meta, per-user override meta, manager and shortcodes/user-meta
 		// keys are hardcoded (Config constants), not editable here. Multiaccount
@@ -401,6 +402,10 @@ class Settings {
 			'product_prices' => array(
 				__( 'Product tier prices (toolbar)', 'wc-pricebook' ),
 				__( 'Shows a toolbar dropdown of each tier’s price on the current product.', 'wc-pricebook' ),
+			),
+			'admin_price_matrix' => array(
+				__( 'Admin price matrix (Products list)', 'wc-pricebook' ),
+				__( 'Show every tier’s price for each product in the WooCommerce Products list. Turn off if your theme already adds a pricing column.', 'wc-pricebook' ),
 			),
 		);
 		?>

@@ -133,10 +133,11 @@ class Config {
 			),
 			/* "Call for Price" label shown for empty-priced products. Empty = leave WooCommerce's default. */
 			'modules'           => array(
-				'switcher'       => true,
-				'flowchart'      => false,
-				'product_prices' => false,
-				'product_meta'   => true,
+				'switcher'           => true,
+				'flowchart'          => false,
+				'product_prices'     => false,
+				'product_meta'       => true,
+				'admin_price_matrix' => true,
 			),
 			/* Pricelist CSV export: emailed recipient, cron cadence, and an optional role filter. */
 			'export'            => array(
