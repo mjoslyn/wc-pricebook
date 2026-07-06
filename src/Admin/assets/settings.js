@@ -62,8 +62,11 @@
 			title: { suffix: '[label]' },
 			empty: 'New tier',
 			meta: [
+				{ suffix: '[key]', select: true, skipValues: [ '' ], cut: ' (', prefix: '(Role: ', after: ')' },
+				{ suffix: '[base_meta]', select: true, skipValues: [ '' ] },
 				{ suffix: '[multiplier]', prefix: '× ' },
-				{ suffix: '[fallback_to]', select: true, prefix: '→ ' }
+				{ suffix: '[fallback_to]', select: true, prefix: 'Fallback to ' },
+				{ suffix: '[override]', map: { '': 'lowest wins', when_priced: 'overrides if priced', always: 'always overrides' } }
 			]
 		},
 		visibility: {
@@ -119,6 +122,11 @@
 		if ( spec.skipValues && spec.skipValues.indexOf( val ) !== -1 ) {
 			return '';
 		}
+		if ( spec.map ) {
+			// Map raw field values to short summary labels (values not in the map
+			// resolve to empty, i.e. omitted from the summary).
+			return Object.prototype.hasOwnProperty.call( spec.map, val ) ? spec.map[ val ] : '';
+		}
 		if ( spec.select && el.tagName === 'SELECT' ) {
 			// An empty selection (e.g. a "— Select —" placeholder) reads as no value.
 			if ( val === '' || val == null ) {
@@ -158,7 +166,7 @@
 			if ( spec.money ) {
 				value = currency + value;
 			}
-			parts.push( ( spec.prefix || '' ) + value );
+			parts.push( ( spec.prefix || '' ) + value + ( spec.after || '' ) );
 		} );
 
 		box.innerHTML = '';
