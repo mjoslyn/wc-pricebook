@@ -14,10 +14,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, gd
+          tools: composer:v2
+          coverage: none
+
+      - name: Install runtime dependencies
+        # --no-dev keeps PHPUnit etc. out of the shipped zip; the committed
+        # composer.lock makes the install reproducible.
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
       - name: Build plugin zip
-        # git archive honors the export-ignore rules in .gitattributes, so the zip
-        # contains only runtime files and unzips to a wc-pricebook/ folder.
-        run: git archive --format=zip --prefix=wc-pricebook/ -o "wc-pricebook-${GITHUB_REF_NAME}.zip" HEAD
+        # git archive honors the export-ignore rules in .gitattributes (drops docs,
+        # tests, CI config, etc.); we then fold in the installed vendor/ so the zip is
+        # upload-and-activate (mPDF included). Unzips to a wc-pricebook/ folder.
+        run: |
+          mkdir -p build
+          git archive --format=tar --prefix=wc-pricebook/ HEAD | tar -x -C build
+          cp -R vendor build/wc-pricebook/vendor
+          (cd build && zip -qr "../wc-pricebook-${GITHUB_REF_NAME}.zip" wc-pricebook)
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
