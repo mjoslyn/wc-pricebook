@@ -49,6 +49,25 @@ Used by the [pricelist export](/reference/pricelist-export):
 | `wc_pricebook_export_user_query` | The `WP_User_Query` args used to gather users |
 | `wc_pricebook_export_batch_rows` | Target CSV rows per background (Action Scheduler) batch — default 5,000 |
 
+## Catalog export
+
+Used by the [catalog export](/reference/catalog-export). The module is **off by default** —
+`wc_pricebook_catalog_pdf_enabled` opts in.
+
+| Filter | Overrides |
+|---|---|
+| `wc_pricebook_catalog_pdf_enabled` | Register the shortcode + download endpoint (default `false`) |
+| `wc_pricebook_catalog_pdf_shortcode` | The buttons shortcode tag (default `wc_pricebook_catalog`) |
+| `wc_pricebook_catalog_pdf_url_shortcode` / `wc_pricebook_catalog_csv_url_shortcode` | The URL-only shortcode tags (default `catalog_pdf_url` / `catalog_csv_url`) |
+| `wc_pricebook_catalog_pdf_columns` | Full-matrix columns — ordered `[ tier_key => label ]` (default MSRP + every tier) |
+| `wc_pricebook_catalog_pdf_show_full_matrix` | Whether a viewer sees the full matrix vs MSRP + their own price (default: managers) |
+| `wc_pricebook_catalog_pdf_excluded_categories` | Product-category term IDs to leave out |
+| `wc_pricebook_catalog_pdf_skip_product` | Per-product skip flag (`$skip`, `$product_id`) |
+| `wc_pricebook_catalog_pdf_your_price_label` | Header for the customer's own-price column (default "Your Price") |
+| `wc_pricebook_catalog_pdf_button_label` / `wc_pricebook_catalog_csv_button_label` | Download button text |
+| `wc_pricebook_catalog_pdf_filename` / `wc_pricebook_catalog_csv_filename` | Downloaded file names |
+| `wc_pricebook_catalog_pdf_mpdf_config` | mPDF constructor config (format, margins, tempDir) |
+
 ## Example
 
 ```php

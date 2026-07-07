@@ -155,6 +155,11 @@ class Plugin {
 		// Pricelist CSV export (WP-CLI + cron + settings "Send now"). Always registered:
 		// cron and WP-CLI run with no admin context, and the schedule syncs on save.
 		( new ExportModule( $this->config, $this->engine ) )->register();
+
+		// Product-catalog PDF (shortcode + download endpoint). Always constructed but
+		// self-gates on the wc_pricebook_catalog_pdf_enabled filter, so it stays inert
+		// unless a host opts in.
+		( new \WCPricebook\CatalogPdf\CatalogPdf( $this->config, $this->context, $this->engine ) )->register();
 	}
 
 	/**

@@ -61,6 +61,9 @@ store's existing user roles instead of forcing new ones.
   tier or as a specific customer.
 - **Price flowchart** — a manager‑only `/price-flowchart` page that shows exactly how a
   price resolves for any product and customer.
+- **Catalog export** — a print‑ready **PDF** and a **CSV** of the catalog, priced per the
+  current customer (or the full tier matrix for managers), from a shortcode with download
+  buttons + URL‑only shortcodes. Off by default; every column, category, and gate is a filter.
 - **Multi‑account aware** — sub‑accounts resolve to their parent for pricing and
   visibility, via a single filter.
 - **Generic core, safe by default** — no store‑specific IDs or roles in the engine;
@@ -249,6 +252,9 @@ without touching the option:
 | `wc_pricebook_allow_zero_price` | Keep a resolved $0 as a real price (default: blank to "Call for Price") |
 | `wc_pricebook_export_settings` | Pricelist‑export recipient / schedule / role filter |
 | `wc_pricebook_export_product_ids` / `wc_pricebook_export_user_query` | Products / user query for the pricelist export |
+| `wc_pricebook_catalog_pdf_enabled` | Turn the catalog PDF/CSV export on (default off) |
+| `wc_pricebook_catalog_pdf_columns` / `wc_pricebook_catalog_pdf_show_full_matrix` | Which tier columns show, and who sees the full matrix vs their own price |
+| `wc_pricebook_catalog_pdf_excluded_categories` / `wc_pricebook_catalog_pdf_skip_product` | Categories / products left out of the catalog |
 
 ## Architecture
 
@@ -269,6 +275,7 @@ PSR‑4 `WCPricebook\` → `src/`.
 | `src/Switcher/` | Manager admin‑bar pricing switcher |
 | `src/Flowchart/Flowchart.php` | `/price-flowchart` debug page |
 | `src/Export/` | Per‑user pricelist CSV export (WP‑CLI, cron, "Send now") |
+| `src/CatalogPdf/CatalogPdf.php` | Catalog PDF (mPDF) + CSV export; download buttons and URL shortcodes |
 
 **Design rule:** anything a store needs is reachable from settings/options or a filter —
 adoption is a data migration, not a code fork. No store‑specific IDs, roles, or names
