@@ -41,6 +41,17 @@ class WooHooks {
 	private $engine;
 
 	/**
+	 * Object IDs (spl_object_id) of cart-line product instances whose price has been
+	 * set for their line quantity by {@see self::apply_bulk_cart_pricing}. For these
+	 * {@see self::get_price} honors the already-set (quantity-aware) price instead of
+	 * recomputing the per-unit price, so quantity-break pricing survives totals
+	 * calculation. Rebuilt on each cart recalculation; per-request only.
+	 *
+	 * @var array<int,bool>
+	 */
+	private $cart_priced = array();
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Config      $config  Plugin config.
@@ -94,6 +105,12 @@ class WooHooks {
 	 * @return mixed
 	 */
 	public function get_price( $price, $product ) {
+		// A cart line already priced for its quantity by apply_bulk_cart_pricing: honor
+		// that (quantity-aware) price rather than recomputing the per-unit price, or the
+		// quantity-break discount would be lost during totals calculation.
+		if ( is_object( $product ) && isset( $this->cart_priced[ spl_object_id( $product ) ] ) ) {
+			return $price;
+		}
 		// Bundle/composite containers are priced by their own plugin (sum of items,
 		// whole-bundle discounts); Pricebook must not recompute them from meta.
 		if ( $this->is_externally_priced_bundle( $product ) ) {
@@ -328,6 +345,9 @@ class WooHooks {
 		if ( ! is_object( $cart ) || ! method_exists( $cart, 'get_cart' ) ) {
 			return;
 		}
+		// Rebuilt each recalculation so a line that stops resolving to a price (e.g.
+		// dropped below a break, or now call_for_price) is no longer honored.
+		$this->cart_priced = array();
 		foreach ( $cart->get_cart() as $cart_item ) {
 			if ( empty( $cart_item['data'] ) || ! is_object( $cart_item['data'] ) ) {
 				continue;
@@ -346,6 +366,7 @@ class WooHooks {
 			}
 			if ( '' !== (string) $new_price && null !== $new_price ) {
 				$cart_item['data']->set_price( $new_price );
+				$this->cart_priced[ spl_object_id( $cart_item['data'] ) ] = true;
 			}
 		}
 	}

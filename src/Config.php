@@ -46,9 +46,10 @@ class Config {
 	 * @var array<string,string>
 	 */
 	const SHORTCODES = array(
-		'table'      => 'pricebook_table',
-		'products'   => 'pricebook_user_products',
-		'bulk_table' => 'pricebook_bulk_table',
+		'table'        => 'pricebook_table',
+		'products'     => 'pricebook_user_products',
+		'bulk_table'   => 'pricebook_bulk_table',
+		'bulk_applies' => 'pricebook_bulk_pricing_applies',
 	);
 
 	/**

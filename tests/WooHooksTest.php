@@ -67,4 +67,77 @@ class WooHooksTest extends TestCase {
 		$simple = new FakeProduct( 10, 'simple' );
 		$this->assertSame( '70', (string) $this->hooks->get_price( 999, $simple ) );
 	}
+
+	public function test_bulk_cart_price_survives_the_get_price_filter() {
+		// 10+ units get a dealer bulk price of 55, below the 70 per-unit dealer price.
+		$this->set_meta(
+			10,
+			array(
+				'_pricebook_bulk_pricing' => array(
+					'dealer' => array( array( 'min_qty' => 10, 'max_qty' => 0, 'price' => '55' ) ),
+				),
+			)
+		);
+		$product = new FakeProduct( 10, 'simple' );
+
+		$this->hooks->apply_bulk_cart_pricing( $this->fake_cart( array( array( 'data' => $product, 'quantity' => 10 ) ) ) );
+
+		// The line was repriced for its quantity...
+		$this->assertSame( '55', (string) $product->get_price() );
+		// ...and get_price honors that instead of recomputing the per-unit dealer price
+		// (70), so the quantity break survives totals calculation. This is the bug the
+		// cart-priced marker fixes: without it get_price would return '70' here.
+		$this->assertSame( '55', (string) $this->hooks->get_price( $product->get_price(), $product ) );
+
+		// Honoring is scoped to the cart-line instance: another instance of the same
+		// product (e.g. rendered in the catalog) is still repriced to the per-unit price.
+		$other = new FakeProduct( 10, 'simple' );
+		$this->assertSame( '70', (string) $this->hooks->get_price( 999, $other ) );
+	}
+
+	public function test_bulk_cart_below_threshold_uses_the_per_unit_price() {
+		// Same 10-unit break, but only 5 in the cart: no break applies.
+		$this->set_meta(
+			10,
+			array(
+				'_pricebook_bulk_pricing' => array(
+					'dealer' => array( array( 'min_qty' => 10, 'max_qty' => 0, 'price' => '55' ) ),
+				),
+			)
+		);
+		$product = new FakeProduct( 10, 'simple' );
+
+		$this->hooks->apply_bulk_cart_pricing( $this->fake_cart( array( array( 'data' => $product, 'quantity' => 5 ) ) ) );
+
+		$this->assertSame( '70', (string) $product->get_price() );
+		$this->assertSame( '70', (string) $this->hooks->get_price( $product->get_price(), $product ) );
+	}
+
+	/**
+	 * A minimal WC_Cart stand-in exposing the get_cart() shape apply_bulk_cart_pricing
+	 * iterates: a list of items each with a 'data' product and a 'quantity'.
+	 *
+	 * @param array<int,array<string,mixed>> $items Cart items.
+	 * @return object
+	 */
+	private function fake_cart( array $items ) {
+		return new class( $items ) {
+			/** @var array<int,array<string,mixed>> */
+			private $items;
+
+			/**
+			 * @param array<int,array<string,mixed>> $items Cart items.
+			 */
+			public function __construct( array $items ) {
+				$this->items = $items;
+			}
+
+			/**
+			 * @return array<int,array<string,mixed>>
+			 */
+			public function get_cart() {
+				return $this->items;
+			}
+		};
+	}
 }

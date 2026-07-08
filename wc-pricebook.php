@@ -3,7 +3,7 @@
  * Plugin Name:       WC Pricebook
  * Plugin URI:        https://github.com/mjoslyn/wc-pricebook
  * Description:       Role/tier-based pricing engine for WooCommerce. Configurable price tiers, rule-based product behaviors, and a manager pricing-view switcher.
- * Version:           0.5.2
+ * Version:           0.5.3
  * Author:            Robot of the Future
  * Author URI:        https://github.com/mjoslyn
  * License:           GPL-2.0-or-later
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WC_PRICEBOOK_VERSION', '0.5.2' );
+define( 'WC_PRICEBOOK_VERSION', '0.5.3' );
 define( 'WC_PRICEBOOK_FILE', __FILE__ );
 define( 'WC_PRICEBOOK_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WC_PRICEBOOK_URL', plugin_dir_url( __FILE__ ) );

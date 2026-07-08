@@ -39,6 +39,13 @@ class FakeProduct {
 	private $priced_individually;
 
 	/**
+	 * Explicitly set price (as WooCommerce's cart flow does via set_price()), or null.
+	 *
+	 * @var mixed
+	 */
+	private $price = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param int    $id                  Product ID.
@@ -77,5 +84,25 @@ class FakeProduct {
 	 */
 	public function get_type() {
 		return $this->type;
+	}
+
+	/**
+	 * Store an explicit price (WooCommerce cart flow).
+	 *
+	 * @param mixed $price Price.
+	 * @return void
+	 */
+	public function set_price( $price ) {
+		$this->price = $price;
+	}
+
+	/**
+	 * The explicitly set price (null when unset).
+	 *
+	 * @param string $context Unused; matches the WC_Product signature.
+	 * @return mixed
+	 */
+	public function get_price( $context = 'view' ) {
+		return $this->price;
 	}
 }

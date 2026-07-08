@@ -70,6 +70,9 @@ class Shortcodes {
 			add_shortcode( $tags['bulk_table'], array( $this, 'render_bulk_table' ) );
 			add_action( 'woocommerce_single_product_summary', array( $this, 'render_product_bulk_table' ), 25 );
 		}
+		if ( ! empty( $tags['bulk_applies'] ) ) {
+			add_shortcode( $tags['bulk_applies'], array( $this, 'render_bulk_applies' ) );
+		}
 	}
 
 	/**
@@ -106,40 +109,12 @@ class Shortcodes {
 			$this->config->shortcodes()['bulk_table']
 		);
 
-		$product_id = (int) $atts['product'];
-		if ( $product_id <= 0 ) {
-			$post       = get_queried_object();
-			$product_id = ( $post && isset( $post->ID ) ) ? (int) $post->ID : 0;
-		}
+		$product_id = $this->resolve_product_id( $atts['product'] );
 		if ( $product_id <= 0 ) {
 			return '';
 		}
 
-		// Resolve which tiers to display.
-		$tiers = $this->config->tiers();
-		if ( 'all' === $atts['role'] ) {
-			$role_keys = array_keys( $tiers );
-		} elseif ( '' !== $atts['role'] ) {
-			$role_keys = isset( $tiers[ $atts['role'] ] ) ? array( $atts['role'] ) : array();
-		} else {
-			// The viewing customer's own pricing. A customer-specific price wins over
-			// quantity pricing, so the breaks table would be misleading — hide it.
-			if ( $this->engine->user_has_override( $product_id ) ) {
-				return '';
-			}
-			$active    = $this->context->user_pricing_role( $this->context->pricing_user_id() );
-			$role_keys = ( '' !== $active && isset( $tiers[ $active ] ) ) ? array( $active ) : array();
-		}
-
-		// Collect non-empty break tables.
-		$sections = array();
-		foreach ( $role_keys as $key ) {
-			$breaks = $this->engine->bulk_breaks( $product_id, $key );
-			if ( ! empty( $breaks ) ) {
-				$label              = isset( $tiers[ $key ]['label'] ) ? (string) $tiers[ $key ]['label'] : $key;
-				$sections[ $label ] = $breaks;
-			}
-		}
+		$sections = $this->bulk_sections( $product_id, (string) $atts['role'] );
 		if ( empty( $sections ) ) {
 			return '';
 		}
@@ -176,6 +151,92 @@ class Shortcodes {
 
 		echo '</tbody></table>';
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Boolean-ish shortcode for Elementor/dynamic-visibility conditions: outputs "1"
+	 * when quantity-break (bulk) pricing applies to the product for the resolved
+	 * role(s), or an empty string when it does not. The condition is identical to
+	 * whether {@see self::render_bulk_table} would render a table (same role
+	 * resolution and customer-override hide), so a widget can be shown/hidden in
+	 * lockstep with the table.
+	 *
+	 * Attributes match the bulk table: `product` (defaults to the current product)
+	 * and `role` ('' = viewer's resolved tier, 'all', or a tier key).
+	 *
+	 * @param array<string,string>|string $atts Shortcode attributes.
+	 * @return string "1" when bulk pricing applies, otherwise "".
+	 */
+	public function render_bulk_applies( $atts ) {
+		$atts = shortcode_atts(
+			array(
+				'product' => 0,
+				'role'    => '',
+			),
+			is_array( $atts ) ? $atts : array(),
+			$this->config->shortcodes()['bulk_applies']
+		);
+
+		$product_id = $this->resolve_product_id( $atts['product'] );
+		if ( $product_id <= 0 ) {
+			return '';
+		}
+
+		return empty( $this->bulk_sections( $product_id, (string) $atts['role'] ) ) ? '' : '1';
+	}
+
+	/**
+	 * Resolve a shortcode `product` attribute to a product ID, falling back to the
+	 * current/queried object when none (or a non-positive value) is given.
+	 *
+	 * @param mixed $product Attribute value.
+	 * @return int Product ID (0 when none could be resolved).
+	 */
+	private function resolve_product_id( $product ) {
+		$product_id = (int) $product;
+		if ( $product_id <= 0 ) {
+			$post       = get_queried_object();
+			$product_id = ( $post && isset( $post->ID ) ) ? (int) $post->ID : 0;
+		}
+		return $product_id;
+	}
+
+	/**
+	 * The non-empty quantity-break tables for a product, keyed by tier label, for the
+	 * roles a `role` attribute resolves to. Shared by the bulk table and its
+	 * dynamic-visibility companion so both agree on when bulk pricing applies.
+	 *
+	 * `role`: 'all' = every configured tier; a tier key = just that tier; '' = the
+	 * viewing customer's resolved tier — but a customer-specific override price wins
+	 * over quantity pricing, so that case yields no sections (the table would mislead).
+	 *
+	 * @param int    $product_id Product ID (assumed > 0).
+	 * @param string $role       Role attribute.
+	 * @return array<string,array<int,array<string,mixed>>> label => break rows.
+	 */
+	private function bulk_sections( $product_id, $role ) {
+		$tiers = $this->config->tiers();
+		if ( 'all' === $role ) {
+			$role_keys = array_keys( $tiers );
+		} elseif ( '' !== $role ) {
+			$role_keys = isset( $tiers[ $role ] ) ? array( $role ) : array();
+		} else {
+			if ( $this->engine->user_has_override( $product_id ) ) {
+				return array();
+			}
+			$active    = $this->context->user_pricing_role( $this->context->pricing_user_id() );
+			$role_keys = ( '' !== $active && isset( $tiers[ $active ] ) ) ? array( $active ) : array();
+		}
+
+		$sections = array();
+		foreach ( $role_keys as $key ) {
+			$breaks = $this->engine->bulk_breaks( $product_id, $key );
+			if ( ! empty( $breaks ) ) {
+				$label              = isset( $tiers[ $key ]['label'] ) ? (string) $tiers[ $key ]['label'] : $key;
+				$sections[ $label ] = $breaks;
+			}
+		}
+		return $sections;
 	}
 
 	/**
