@@ -107,7 +107,8 @@
 		var els = item.querySelectorAll( '[name]' );
 		for ( var i = 0; i < els.length; i++ ) {
 			var name = els[ i ].getAttribute( 'name' ) || '';
-			if ( name.slice( -suffix.length ) === suffix ) {
+			// Match a plain field ("[role]") or its multi-value array form ("[role][]").
+			if ( name.slice( -suffix.length ) === suffix || name.slice( -( suffix.length + 2 ) ) === suffix + '[]' ) {
 				return els[ i ];
 			}
 		}
@@ -128,16 +129,29 @@
 			return Object.prototype.hasOwnProperty.call( spec.map, val ) ? spec.map[ val ] : '';
 		}
 		if ( spec.select && el.tagName === 'SELECT' ) {
+			var cut = function ( text ) {
+				if ( spec.cut && text.indexOf( spec.cut ) !== -1 ) {
+					text = text.split( spec.cut )[ 0 ];
+				}
+				return text.trim();
+			};
+			// Multi-select: join the selected option labels (empty when nothing chosen).
+			if ( el.multiple ) {
+				var texts = [];
+				Array.prototype.forEach.call( el.selectedOptions || [], function ( opt ) {
+					var t = cut( opt.text || '' );
+					if ( t ) {
+						texts.push( t );
+					}
+				} );
+				return texts.join( ', ' );
+			}
 			// An empty selection (e.g. a "— Select —" placeholder) reads as no value.
 			if ( val === '' || val == null ) {
 				return '';
 			}
-			var opt  = el.options[ el.selectedIndex ];
-			var text = opt ? opt.text : '';
-			if ( spec.cut && text.indexOf( spec.cut ) !== -1 ) {
-				text = text.split( spec.cut )[ 0 ];
-			}
-			return text.trim();
+			var opt = el.options[ el.selectedIndex ];
+			return cut( opt ? opt.text : '' );
 		}
 		if ( spec.upper ) {
 			return val ? String( val ).toUpperCase() : '';

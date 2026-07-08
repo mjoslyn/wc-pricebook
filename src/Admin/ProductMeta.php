@@ -428,23 +428,31 @@ class ProductMeta {
 		$stored = get_post_meta( $product_id, $meta_key, true );
 		$stored = is_array( $stored ) ? $stored : array();
 
-		// Flatten the { tier => rows } map to { role, min_qty, price } rows.
-		$rows = array();
-		foreach ( $stored as $tier_key => $tier_rows ) {
-			if ( ! isset( $tiers[ $tier_key ] ) || ! is_array( $tier_rows ) ) {
+		// Flatten the { role => rows } map, then group breaks that share the same
+		// quantity range and price so one row can carry every role they apply to
+		// (a break is stored once per role; multi-role rows fan out on save).
+		$groups = array();
+		foreach ( $stored as $role_key => $role_rows ) {
+			if ( ! is_array( $role_rows ) ) {
 				continue;
 			}
-			foreach ( $tier_rows as $row ) {
+			foreach ( $role_rows as $row ) {
 				if ( ! is_array( $row ) || ! isset( $row['min_qty'], $row['price'] ) ) {
 					continue;
 				}
-				$max      = isset( $row['max_qty'] ) ? (int) $row['max_qty'] : 0;
-				$rows[]   = array(
-					'role'    => $tier_key,
-					'min_qty' => (string) (int) $row['min_qty'],
-					'max_qty' => $max > 0 ? (string) $max : '',
-					'price'   => (string) $row['price'],
-				);
+				$max   = isset( $row['max_qty'] ) && (int) $row['max_qty'] > 0 ? (string) (int) $row['max_qty'] : '';
+				$min   = (string) (int) $row['min_qty'];
+				$price = (string) $row['price'];
+				$sig   = $min . '|' . $max . '|' . $price;
+				if ( ! isset( $groups[ $sig ] ) ) {
+					$groups[ $sig ] = array(
+						'roles'   => array(),
+						'min_qty' => $min,
+						'max_qty' => $max,
+						'price'   => $price,
+					);
+				}
+				$groups[ $sig ]['roles'][] = (string) $role_key;
 			}
 		}
 		?>
@@ -455,14 +463,14 @@ class ProductMeta {
 				<div data-repeater-list>
 					<?php
 					$index = 0;
-					foreach ( $rows as $row ) {
-						$this->render_bulk_row( (string) $index, $row['role'], $row['min_qty'], $row['max_qty'], $row['price'] );
+					foreach ( $groups as $group ) {
+						$this->render_bulk_row( (string) $index, $group['roles'], $group['min_qty'], $group['max_qty'], $group['price'] );
 						$index++;
 					}
 					?>
 				</div>
 				<template data-repeater-template>
-					<?php $this->render_bulk_row( '__INDEX__', '', '', '', '' ); ?>
+					<?php $this->render_bulk_row( '__INDEX__', array(), '', '', '' ); ?>
 				</template>
 				<p class="form-field">
 					<button type="button" class="button" data-repeater-add><?php esc_html_e( 'Add quantity break', 'wc-pricebook' ); ?></button>
@@ -488,7 +496,7 @@ class ProductMeta {
 	 * Any stored value not otherwise present is appended so an existing row never
 	 * silently changes on save.
 	 *
-	 * @param string $selected Currently stored value for the row.
+	 * @param string|array<int,string> $selected Currently stored value(s) for the row.
 	 * @return array<string,string> value => label.
 	 */
 	private function bulk_target_options( $selected = '' ) {
@@ -498,8 +506,11 @@ class ProductMeta {
 				$options[ $key ] = $label;
 			}
 		}
-		if ( '' !== (string) $selected && ! isset( $options[ (string) $selected ] ) ) {
-			$options[ (string) $selected ] = (string) $selected;
+		foreach ( (array) $selected as $sel ) {
+			$sel = (string) $sel;
+			if ( '' !== $sel && ! isset( $options[ $sel ] ) ) {
+				$options[ $sel ] = $sel;
+			}
 		}
 		return $options;
 	}
@@ -519,19 +530,19 @@ class ProductMeta {
 		return function_exists( 'wp_roles' ) && wp_roles()->is_role( $key );
 	}
 
-	private function render_bulk_row( $index, $role, $min_qty, $max_qty, $price ) {
-		$base = 'pricebook_bulk_price[' . $index . ']';
+	private function render_bulk_row( $index, array $roles, $min_qty, $max_qty, $price ) {
+		$base  = 'pricebook_bulk_price[' . $index . ']';
+		$roles = array_map( 'strval', $roles );
 		?>
 		<div class="wc-pricebook-repeater__item" data-repeater-item>
 			<?php $this->card_header( __( 'Remove quantity break', 'wc-pricebook' ) ); ?>
 			<div class="wc-pricebook-repeater__body">
 				<div class="wc-pricebook-repeater__grid">
 					<div class="wc-pricebook-field wc-pricebook-field--full">
-						<label><?php esc_html_e( 'Role', 'wc-pricebook' ); ?></label>
-						<select name="<?php echo esc_attr( $base . '[role]' ); ?>">
-							<option value=""><?php esc_html_e( '— Select —', 'wc-pricebook' ); ?></option>
-							<?php foreach ( $this->bulk_target_options( $role ) as $key => $label ) : ?>
-								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $key, $role ); ?>><?php echo esc_html( $label ); ?></option>
+						<label><?php esc_html_e( 'Roles', 'wc-pricebook' ); ?></label>
+						<select multiple class="wc-enhanced-select" name="<?php echo esc_attr( $base . '[role][]' ); ?>" style="width:100%;" data-placeholder="<?php esc_attr_e( 'Select roles&hellip;', 'wc-pricebook' ); ?>">
+							<?php foreach ( $this->bulk_target_options( $roles ) as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( in_array( (string) $key, $roles, true ) ); ?>><?php echo esc_html( $label ); ?></option>
 							<?php endforeach; ?>
 						</select>
 					</div>
@@ -570,25 +581,44 @@ class ProductMeta {
 
 		$rows = get_post_meta( $product_id, $meta_key, true );
 		$rows = is_array( $rows ) ? $rows : array();
+
+		// Group stored { user-id, price } entries by price so a single row can carry
+		// every customer that shares it (a price is stored once per customer; multi-
+		// customer rows fan out on save).
+		$groups = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) || ! isset( $row['user-id'] ) ) {
+				continue;
+			}
+			$uid = (int) $row['user-id'];
+			if ( $uid <= 0 ) {
+				continue;
+			}
+			$price = isset( $row['price'] ) ? (string) $row['price'] : '';
+			if ( ! isset( $groups[ $price ] ) ) {
+				$groups[ $price ] = array(
+					'users' => array(),
+					'price' => $price,
+				);
+			}
+			$groups[ $price ]['users'][] = $uid;
+		}
 		?>
 		<div class="options_group">
 			<p class="form-field wc-pricebook-group-title"><strong><?php esc_html_e( 'Customer-specific prices', 'wc-pricebook' ); ?></strong></p>
-			<p class="form-field"><?php esc_html_e( 'A price set here for a customer overrides every tier and role price for that customer.', 'wc-pricebook' ); ?></p>
+			<p class="form-field"><?php esc_html_e( 'A price set here overrides every tier and role price for the selected customers.', 'wc-pricebook' ); ?></p>
 			<div class="wc-pricebook-user-prices" data-repeater data-repeater-kind="user-price" data-currency="<?php echo esc_attr( $this->currency_symbol() ); ?>">
 				<div data-repeater-list>
 					<?php
 					$index = 0;
-					foreach ( $rows as $row ) {
-						if ( ! is_array( $row ) || ! isset( $row['user-id'] ) ) {
-							continue;
-						}
-						$this->render_user_row( (string) $index, (int) $row['user-id'], isset( $row['price'] ) ? (string) $row['price'] : '' );
+					foreach ( $groups as $group ) {
+						$this->render_user_row( (string) $index, $group['users'], $group['price'] );
 						$index++;
 					}
 					?>
 				</div>
 				<template data-repeater-template>
-					<?php $this->render_user_row( '__INDEX__', 0, '' ); ?>
+					<?php $this->render_user_row( '__INDEX__', array(), '' ); ?>
 				</template>
 				<p class="form-field">
 					<button type="button" class="button" data-repeater-add><?php esc_html_e( 'Add customer price', 'wc-pricebook' ); ?></button>
@@ -606,27 +636,33 @@ class ProductMeta {
 	 * @param string $price   Price value.
 	 * @return void
 	 */
-	private function render_user_row( $index, $user_id, $price ) {
+	private function render_user_row( $index, array $user_ids, $price ) {
 		$base = 'pricebook_user_price[' . $index . ']';
-		$user = $user_id > 0 ? get_userdata( $user_id ) : false;
 		?>
 		<div class="wc-pricebook-repeater__item" data-repeater-item>
 			<?php $this->card_header( __( 'Remove customer price', 'wc-pricebook' ) ); ?>
 			<div class="wc-pricebook-repeater__body">
 				<div class="wc-pricebook-repeater__grid">
 					<div class="wc-pricebook-field wc-pricebook-field--full">
-						<label><?php esc_html_e( 'Customer', 'wc-pricebook' ); ?></label>
+						<label><?php esc_html_e( 'Customers', 'wc-pricebook' ); ?></label>
 						<select
+							multiple
 							class="wc-customer-search"
-							name="<?php echo esc_attr( $base . '[user-id]' ); ?>"
-							data-placeholder="<?php esc_attr_e( 'Search for a customer&hellip;', 'wc-pricebook' ); ?>"
+							name="<?php echo esc_attr( $base . '[user-id][]' ); ?>"
+							data-placeholder="<?php esc_attr_e( 'Search for customers&hellip;', 'wc-pricebook' ); ?>"
 							data-allow_clear="true"
 							style="width:100%;">
-							<?php if ( $user ) : ?>
-								<option value="<?php echo esc_attr( (string) $user_id ); ?>" selected="selected">
-									<?php echo esc_html( sprintf( '%1$s (#%2$d &ndash; %3$s)', $user->display_name, $user_id, $user->user_email ) ); ?>
+							<?php
+							foreach ( $user_ids as $user_id ) :
+								$user = (int) $user_id > 0 ? get_userdata( (int) $user_id ) : false;
+								if ( ! $user ) :
+									continue;
+								endif;
+								?>
+								<option value="<?php echo esc_attr( (string) (int) $user_id ); ?>" selected="selected">
+									<?php echo esc_html( sprintf( '%1$s (#%2$d &ndash; %3$s)', $user->display_name, (int) $user_id, $user->user_email ) ); ?>
 								</option>
-							<?php endif; ?>
+							<?php endforeach; ?>
 						</select>
 					</div>
 					<div class="wc-pricebook-field">
@@ -793,28 +829,36 @@ class ProductMeta {
 		$tiers = $this->config->tiers();
 
 		// Group by role, keyed within a role by quantity so a repeated quantity for
-		// the same role collapses to the last row entered.
+		// the same role collapses to the last row entered. A row may target several
+		// roles at once (role[]); it fans out to one stored break per role.
 		$by_role = array();
 		foreach ( $rows as $row ) {
 			if ( ! is_array( $row ) ) {
 				continue;
 			}
-			$role  = isset( $row['role'] ) ? sanitize_key( $row['role'] ) : '';
+			$roles = isset( $row['role'] ) ? (array) $row['role'] : array();
+			$roles = array_values( array_unique( array_filter( array_map( 'sanitize_key', $roles ) ) ) );
 			$qty   = isset( $row['min_qty'] ) ? absint( $row['min_qty'] ) : 0;
 			$max   = isset( $row['max_qty'] ) ? absint( $row['max_qty'] ) : 0;
 			$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
 			// Drop incomplete rows and inverted ranges (a set max below the min).
-			if ( '' === $role || ! $this->is_valid_bulk_target( $role, $tiers ) || $qty < 1 || '' === $price ) {
+			if ( empty( $roles ) || $qty < 1 || '' === $price ) {
 				continue;
 			}
 			if ( $max > 0 && $max < $qty ) {
 				continue;
 			}
-			$by_role[ $role ][ $qty ] = array(
-				'min_qty' => $qty,
-				'max_qty' => $max,
-				'price'   => $this->format( $price ),
-			);
+			$formatted = $this->format( $price );
+			foreach ( $roles as $role ) {
+				if ( ! $this->is_valid_bulk_target( $role, $tiers ) ) {
+					continue;
+				}
+				$by_role[ $role ][ $qty ] = array(
+					'min_qty' => $qty,
+					'max_qty' => $max,
+					'price'   => $formatted,
+				);
+			}
 		}
 
 		if ( empty( $by_role ) ) {
@@ -851,20 +895,26 @@ class ProductMeta {
 			: array();
 
 		// Keyed by user id so a duplicate customer collapses to the last row entered.
+		// A row may target several customers at once (user-id[]); it fans out to one
+		// stored entry per customer, all sharing the row's price.
 		$by_user = array();
 		foreach ( $rows as $row ) {
 			if ( ! is_array( $row ) ) {
 				continue;
 			}
-			$user_id = isset( $row['user-id'] ) ? absint( $row['user-id'] ) : 0;
-			$price   = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
-			if ( $user_id <= 0 || '' === $price ) {
+			$user_ids = isset( $row['user-id'] ) ? (array) $row['user-id'] : array();
+			$user_ids = array_values( array_unique( array_filter( array_map( 'absint', $user_ids ) ) ) );
+			$price    = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
+			if ( empty( $user_ids ) || '' === $price ) {
 				continue;
 			}
-			$by_user[ $user_id ] = array(
-				'user-id' => $user_id,
-				'price'   => $this->format( $price ),
-			);
+			$formatted = $this->format( $price );
+			foreach ( $user_ids as $user_id ) {
+				$by_user[ $user_id ] = array(
+					'user-id' => $user_id,
+					'price'   => $formatted,
+				);
+			}
 		}
 
 		if ( empty( $by_user ) ) {
