@@ -156,6 +156,7 @@ class Settings {
 		$out['modules']['flowchart']          = ! empty( $input['modules']['flowchart'] );
 		$out['modules']['product_prices']     = ! empty( $input['modules']['product_prices'] );
 		$out['modules']['admin_price_matrix'] = ! empty( $input['modules']['admin_price_matrix'] );
+		$out['modules']['catalog_pdf']        = ! empty( $input['modules']['catalog_pdf'] );
 
 		// Base price meta, per-user override meta, manager and shortcodes/user-meta
 		// keys are hardcoded (Config constants), not editable here. Multiaccount
@@ -407,6 +408,10 @@ class Settings {
 				__( 'Admin price matrix (Products list)', 'wc-pricebook' ),
 				__( 'Show every tier’s price for each product in the WooCommerce Products list. Turn off if your theme already adds a pricing column.', 'wc-pricebook' ),
 			),
+			'catalog_pdf'    => array(
+				__( 'Catalog PDF', 'wc-pricebook' ),
+				__( 'Enables the print-ready catalog PDF/CSV download and its shortcodes.', 'wc-pricebook' ),
+			),
 		);
 		?>
 		<div class="wc-pricebook-section">
@@ -435,21 +440,78 @@ class Settings {
 	 */
 	private function render_shortcodes( array $shortcodes ) {
 		$rows = array(
-			'table'    => __( 'Pricing table', 'wc-pricebook' ),
-			'products' => __( 'User products', 'wc-pricebook' ),
+			'table'        => __( 'Pricing table', 'wc-pricebook' ),
+			'products'     => __( 'User products', 'wc-pricebook' ),
+			'bulk_table'   => __( 'Bulk pricing table', 'wc-pricebook' ),
+			'bulk_applies' => __( 'Bulk pricing applies', 'wc-pricebook' ),
 		);
 		?>
 		<div class="wc-pricebook-section">
 			<h2><?php esc_html_e( 'Shortcodes', 'wc-pricebook' ); ?></h2>
 			<p class="description"><?php esc_html_e( 'Shortcode tags are fixed. Paste these into any page or post.', 'wc-pricebook' ); ?></p>
 			<div class="wc-pricebook-shortcodes">
-				<?php foreach ( $rows as $key => $label ) : ?>
+				<?php
+				foreach ( $rows as $key => $label ) :
+					// Skip tags a filter has blanked out — those aren't registered.
+					if ( empty( $shortcodes[ $key ] ) ) {
+						continue;
+					}
+					?>
 					<div class="wc-pricebook-shortcode">
 						<span class="wc-pricebook-shortcode__label"><?php echo esc_html( $label ); ?></span>
 						<code>[<?php echo esc_html( $shortcodes[ $key ] ); ?>]</code>
 					</div>
 				<?php endforeach; ?>
 			</div>
+			<?php $this->render_catalog_pdf_shortcodes(); ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the optional catalog-PDF module's shortcodes, shown only when a host has
+	 * enabled the module. Unlike the fixed tags above, these are host-overridable, so
+	 * each is resolved through the same filter CatalogPdf::register() uses — the list
+	 * stays in sync with whatever is actually registered.
+	 *
+	 * @return void
+	 */
+	private function render_catalog_pdf_shortcodes() {
+		/** @var bool $enabled */
+		$enabled = apply_filters( 'wc_pricebook_catalog_pdf_enabled', false );
+		if ( ! $enabled ) {
+			return;
+		}
+		$rows = array(
+			array(
+				'label' => __( 'Catalog download buttons', 'wc-pricebook' ),
+				'tag'   => (string) apply_filters( 'wc_pricebook_catalog_pdf_shortcode', 'wc_pricebook_catalog' ),
+			),
+			array(
+				'label' => __( 'Catalog PDF URL', 'wc-pricebook' ),
+				'tag'   => (string) apply_filters( 'wc_pricebook_catalog_pdf_url_shortcode', 'catalog_pdf_url' ),
+			),
+			array(
+				'label' => __( 'Catalog CSV URL', 'wc-pricebook' ),
+				'tag'   => (string) apply_filters( 'wc_pricebook_catalog_csv_url_shortcode', 'catalog_csv_url' ),
+			),
+		);
+		?>
+		<h3><?php esc_html_e( 'Catalog PDF', 'wc-pricebook' ); ?></h3>
+		<p class="description"><?php esc_html_e( 'Provided by the catalog-PDF module. Tags are host-overridable via filters.', 'wc-pricebook' ); ?></p>
+		<div class="wc-pricebook-shortcodes">
+			<?php
+			foreach ( $rows as $row ) :
+				// Skip tags a filter has blanked out — those aren't registered.
+				if ( '' === $row['tag'] ) {
+					continue;
+				}
+				?>
+				<div class="wc-pricebook-shortcode">
+					<span class="wc-pricebook-shortcode__label"><?php echo esc_html( $row['label'] ); ?></span>
+					<code>[<?php echo esc_html( $row['tag'] ); ?>]</code>
+				</div>
+			<?php endforeach; ?>
 		</div>
 		<?php
 	}

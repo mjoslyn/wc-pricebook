@@ -139,6 +139,7 @@ class Config {
 				'product_prices'     => false,
 				'product_meta'       => true,
 				'admin_price_matrix' => true,
+				'catalog_pdf'        => false,
 			),
 			/* Pricelist CSV export: emailed recipient, cron cadence, and an optional role filter. */
 			'export'            => array(

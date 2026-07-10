@@ -158,7 +158,14 @@ class Plugin {
 
 		// Product-catalog PDF (shortcode + download endpoint). Always constructed but
 		// self-gates on the wc_pricebook_catalog_pdf_enabled filter, so it stays inert
-		// unless a host opts in.
+		// unless opted in. The "Catalog PDF" module toggle feeds that filter; a host can
+		// still force it on with its own filter (this only turns it on, never off).
+		add_filter(
+			'wc_pricebook_catalog_pdf_enabled',
+			function ( $enabled ) {
+				return $this->config->module_enabled( 'catalog_pdf' ) ? true : $enabled;
+			}
+		);
 		( new \WCPricebook\CatalogPdf\CatalogPdf( $this->config, $this->context, $this->engine ) )->register();
 	}
 
