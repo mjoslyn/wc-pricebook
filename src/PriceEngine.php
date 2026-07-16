@@ -538,9 +538,12 @@ class PriceEngine {
 
 	/**
 	 * Effective per-unit price for a product at a given quantity, honoring per-role
-	 * bulk (quantity-break) pricing. Below the lowest break, or when the user is not
-	 * priced as a tier, this is just {@see self::effective_price}. A break price only
-	 * applies when it improves on the normal price.
+	 * bulk (quantity-break) pricing. When the line quantity meets a bulk break, that
+	 * break price OVERRIDES the tier-resolved price outright — even when a tier price
+	 * would be lower — and only a per-user negotiated override (below) outranks it.
+	 * Below the lowest break quantity (e.g. qty 1 when breaks start at 2), or when no
+	 * break targets the user, the price is just the normal {@see self::effective_price}
+	 * tier resolution.
 	 *
 	 * @param mixed       $price   Incoming price (passed through to effective_price).
 	 * @param \WC_Product $product Product.
@@ -555,10 +558,11 @@ class PriceEngine {
 		$explicit = ( null !== $user_id );
 		$normal   = $this->effective_price( $price, $product, $explicit ? $user_id : null );
 
+		// Bulk breaks are keyed by their own minimum quantity, so a break may start at
+		// any quantity — including 1. Consider bulk at every quantity and let the break
+		// lookup below decide: when the quantity is under the lowest break's minimum no
+		// break matches, $bulk stays empty, and the normal tier price is returned.
 		$qty = (int) $qty;
-		if ( $qty <= 1 ) {
-			return $normal;
-		}
 
 		$resolved_user = $explicit ? $this->context->resolve_pricing_user_id( $user_id ) : $this->context->pricing_user_id();
 
@@ -581,13 +585,15 @@ class PriceEngine {
 				$bulk = (string) $candidate;
 			}
 		}
+		// No break applies at this quantity (e.g. below the lowest break's minimum):
+		// the tier-resolved price stands.
 		if ( '' === $bulk ) {
 			return $normal;
 		}
-		if ( '' === (string) $normal ) {
-			return $bulk;
-		}
-		return (float) $bulk < (float) $normal ? $bulk : $normal;
+		// A met bulk break overrides tier pricing outright — used even when the normal
+		// tier price is lower. Only a per-user negotiated override (handled above) beats
+		// it.
+		return $bulk;
 	}
 
 	/**

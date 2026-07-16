@@ -525,13 +525,15 @@ class PriceEngineTest extends TestCase {
 		$this->assertSame( '100', (string) $this->engine->effective_price_qty( null, $product, 50 ) );
 	}
 
-	public function test_bulk_only_applies_when_cheaper_than_normal() {
+	public function test_bulk_overrides_tier_even_when_more_expensive() {
+		// A met bulk break overrides tier pricing outright — used even when the tier
+		// price is lower. Only a per-user negotiated override outranks it.
 		$this->set_meta(
 			10,
 			array(
 				'_regular_price'          => '100',
 				'dealer_price'            => '70',
-				// Break is more expensive than the dealer's normal price: ignored.
+				// Break is MORE expensive than the dealer's normal $70 price and still wins.
 				'_pricebook_bulk_pricing' => array(
 					'dealer' => array( array( 'min_qty' => 10, 'price' => '80' ) ),
 				),
@@ -540,7 +542,35 @@ class PriceEngineTest extends TestCase {
 		Store::add_user( 5, array( 'dealer' ), array( 'dealer' ) );
 		Store::$current_user = 5;
 		$product = new FakeProduct( 10 );
-		$this->assertSame( '70', (string) $this->engine->effective_price_qty( null, $product, 20 ) );
+		// Below the break: the tier price stands. At/above it: the break overrides.
+		$this->assertSame( '70', (string) $this->engine->effective_price_qty( null, $product, 9 ) );
+		$this->assertSame( '80', (string) $this->engine->effective_price_qty( null, $product, 20 ) );
+	}
+
+	public function test_bulk_break_starting_at_qty_one_applies_at_quantity_one() {
+		// A break whose minimum quantity is 1 applies at a quantity of 1 and overrides
+		// the tier price there (the engine no longer skips bulk at qty 1). Below the
+		// lowest break quantity — there is none here — it would fall back to the tier.
+		$this->set_meta(
+			10,
+			array(
+				'_regular_price'          => '100',
+				'dealer_price'            => '70',
+				'_pricebook_bulk_pricing' => array(
+					'dealer' => array(
+						array( 'min_qty' => 1, 'max_qty' => 9, 'price' => '90' ),
+						array( 'min_qty' => 10, 'price' => '80' ),
+					),
+				),
+			)
+		);
+		Store::add_user( 5, array( 'dealer' ), array( 'dealer' ) );
+		Store::$current_user = 5;
+		$product = new FakeProduct( 10 );
+		// qty 1 falls in the 1–9 break ($90), overriding the $70 tier price.
+		$this->assertSame( '90', (string) $this->engine->effective_price_qty( null, $product, 1 ) );
+		$this->assertSame( '90', (string) $this->engine->effective_price_qty( null, $product, 9 ) );
+		$this->assertSame( '80', (string) $this->engine->effective_price_qty( null, $product, 10 ) );
 	}
 
 	public function test_bulk_breaks_normalizes_and_sorts() {
