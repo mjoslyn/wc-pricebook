@@ -424,6 +424,10 @@ class Flowchart {
 		.ident h1 { font-size: 24px; margin: 0 0 6px; font-weight: 600; letter-spacing: -.01em; }
 		.ident h1 a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--rule-firm); }
 		.ident h1 a:hover { border-bottom-color: var(--signal); color: var(--signal); }
+		/* Jump to where the price is actually changed. */
+		.edit-link { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; vertical-align: 3px; font-family: var(--ui); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 3px 8px 3px 6px; border: 1px solid var(--rule-firm); border-radius: 4px; }
+		.ident h1 a.edit-link:hover { color: var(--signal); border-color: var(--signal); background: var(--signal-soft); }
+		.edit-link svg { width: 13px; height: 13px; display: block; }
 		.pid { font-family: var(--data); color: var(--faint); font-weight: 400; }
 		.empty { padding: 80px 0; text-align: center; color: var(--muted); }
 
@@ -539,6 +543,7 @@ class Flowchart {
 			<div>
 				<?php
 				$product_link = get_permalink( $product_id );
+				$edit_link    = current_user_can( 'edit_post', $product_id ) ? get_edit_post_link( $product_id ) : '';
 				$cat_terms    = get_the_terms( $product_id, 'product_cat' );
 				$cat_terms    = ( is_array( $cat_terms ) ) ? $cat_terms : array();
 				?>
@@ -549,6 +554,12 @@ class Flowchart {
 							<a href="<?php echo esc_url( $product_link ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $product->get_name() ); ?></a>
 						<?php else : ?>
 							<?php echo esc_html( $product->get_name() ); ?>
+						<?php endif; ?>
+						<?php if ( $edit_link ) : ?>
+							<a class="edit-link" href="<?php echo esc_url( $edit_link ); ?>" target="_blank" rel="noopener" title="<?php esc_attr_e( 'Edit this product', 'wc-pricebook' ); ?>">
+								<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M13.5 3.2a1.7 1.7 0 0 1 2.4 2.4l-.9.9-2.4-2.4.9-.9ZM11.5 5.2l2.4 2.4-6.6 6.6-3 .6.6-3 6.6-6.6ZM4 16.5h12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+								<?php esc_html_e( 'Edit', 'wc-pricebook' ); ?>
+							</a>
 						<?php endif; ?>
 					</h1>
 					<p class="note" style="margin:0;">
