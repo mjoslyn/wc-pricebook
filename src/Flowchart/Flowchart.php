@@ -278,7 +278,7 @@ class Flowchart {
 			return wp_kses_post( wc_price( $value ) );
 		}
 		if ( ! $empty_is_cfp ) {
-			return '—';
+			return '<span class="dash">—</span>';
 		}
 		return esc_html__( 'Call for Price', 'wc-pricebook' );
 	}
@@ -380,81 +380,302 @@ class Flowchart {
 <head>
 	<meta charset="<?php bloginfo( 'charset' ); ?>">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title><?php esc_html_e( 'Pricebook Flowchart', 'wc-pricebook' ); ?></title>
+	<title><?php esc_html_e( 'Price resolution — Pricebook', 'wc-pricebook' ); ?></title>
 	<style>
-		body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #f6f7f7; color: #1d2327; }
-		.wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
-		h1 { font-size: 22px; }
-		.card { background: #fff; border: 1px solid #dcdcde; border-radius: 6px; padding: 16px 20px; margin-bottom: 16px; }
-		input[type=search] { width: 100%; padding: 10px; font-size: 15px; box-sizing: border-box; }
-		.results { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid #dcdcde; border-top: 0; display: none; }
-		.results li { padding: 8px 10px; cursor: pointer; }
-		.results li:hover { background: #f0f6fc; }
-		table { width: 100%; border-collapse: collapse; }
-		th, td { text-align: left; padding: 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-		th { border-bottom: 2px solid #dcdcde; }
-		.steps { margin: 0; padding-left: 18px; color: #50575e; font-size: 13px; }
-		.price { font-weight: 600; white-space: nowrap; }
-		.breaks { list-style: none; margin: 0; padding: 0; font-size: 13px; }
-		.breaks li { white-space: nowrap; }
-		.breaks .qty { color: #50575e; }
-		.breaks .from { color: #646970; font-style: italic; }
-		h3 { font-size: 15px; margin: 20px 0 4px; }
-		.note { margin: 0 0 8px; color: #646970; font-size: 13px; }
+		:root {
+			--paper: #f1f4f3;
+			--card: #fff;
+			--ink: #14171a;
+			--muted: #5a6169;
+			--faint: #8b9299;
+			--rule: #e3e7e5;
+			--rule-firm: #c7cfcc;
+			--signal: #12594a;
+			--signal-soft: #e7f1ed;
+			--alert: #a4262c;
+			--alert-soft: #fbedee;
+			--caution: #8a5a00;
+			--caution-soft: #fbf3e2;
+			--ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+			--data: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+		}
+		* { box-sizing: border-box; }
+		body { font-family: var(--ui); margin: 0; background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.5; }
+		.wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px 64px; }
+		a { color: var(--signal); }
+		:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+		/* Masthead: identity + the two pickers, always reachable. */
+		.masthead { position: sticky; top: 0; z-index: 20; background: var(--card); border-bottom: 1px solid var(--rule-firm); }
+		.masthead-inner { max-width: 1100px; margin: 0 auto; padding: 14px 24px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
+		.brand { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); font-weight: 600; padding-bottom: 9px; white-space: nowrap; }
+		.brand b { color: var(--ink); font-weight: 600; }
+		.picker { flex: 1 1 260px; min-width: 0; position: relative; }
+		.picker label { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+		input[type=search] { width: 100%; padding: 8px 10px; font: inherit; background: var(--paper); border: 1px solid var(--rule-firm); border-radius: 4px; color: var(--ink); }
+		input[type=search]:focus { background: var(--card); border-color: var(--signal); outline: none; box-shadow: 0 0 0 3px var(--signal-soft); }
+		input[type=search]:disabled { color: var(--faint); cursor: not-allowed; }
+		.results { list-style: none; margin: 0; padding: 4px; position: absolute; left: 0; right: 0; top: 100%; background: var(--card); border: 1px solid var(--rule-firm); border-radius: 4px; box-shadow: 0 8px 24px rgba(20,23,26,.14); display: none; max-height: 320px; overflow-y: auto; z-index: 30; }
+		.results li { padding: 7px 8px; cursor: pointer; border-radius: 3px; }
+		.results li:hover { background: var(--signal-soft); }
+
+		/* Product identity. */
+		.ident { padding: 28px 0 20px; border-bottom: 1px solid var(--rule); margin-bottom: 24px; }
+		.ident h1 { font-size: 24px; margin: 0 0 6px; font-weight: 600; letter-spacing: -.01em; }
+		.ident h1 a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--rule-firm); }
+		.ident h1 a:hover { border-bottom-color: var(--signal); color: var(--signal); }
+		.pid { font-family: var(--data); color: var(--faint); font-weight: 400; }
+		.empty { padding: 80px 0; text-align: center; color: var(--muted); }
+
+		/* Sections. */
+		section { margin-bottom: 32px; }
+		h2 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 10px; }
+		.note { margin: 0 0 10px; color: var(--muted); font-size: 13px; max-width: 78ch; }
+		.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px; }
+
+		/* The answer: what this customer pays, and why. */
+		.answer { background: var(--card); border: 1px solid var(--rule-firm); border-left: 3px solid var(--signal); border-radius: 6px; padding: 18px 20px; }
+		.answer h2 { color: var(--signal); }
+		.answer-price { font-family: var(--data); font-size: 30px; font-weight: 600; letter-spacing: -.02em; margin: 2px 0 0; }
+		.answer-price .sale { color: var(--alert); }
+		.answer-price .struck { color: var(--faint); text-decoration: line-through; font-weight: 400; font-size: 20px; }
+		.who { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+		.who strong { color: var(--ink); }
+
+		/* Resolution trace: the engine's own audit trail, in order. */
+		.trace { list-style: none; margin: 14px 0 0; padding: 0; counter-reset: step; border-left: 1px solid var(--rule-firm); }
+		.trace li { counter-increment: step; position: relative; padding: 3px 0 3px 22px; font-size: 13px; color: var(--muted); font-family: var(--data); }
+		.trace li::before { content: counter(step); position: absolute; left: -6px; top: 6px; width: 11px; height: 11px; border-radius: 50%; background: var(--paper); border: 1px solid var(--rule-firm); color: var(--faint); font-size: 8px; line-height: 9px; text-align: center; font-family: var(--ui); }
+		.trace li:last-child { color: var(--ink); }
+		.trace li:last-child::before { background: var(--signal); border-color: var(--signal); color: #fff; }
+
+		/* Status callouts. */
+		.flag { margin: 0 0 10px; padding: 8px 11px; border-radius: 4px; font-size: 13px; font-weight: 600; border: 1px solid; }
+		.flag-bad { background: var(--alert-soft); border-color: #eccace; color: var(--alert); }
+		.flag-warn { background: var(--caution-soft); border-color: #e6d9a2; color: var(--caution); }
+		.flag-ok { background: var(--signal-soft); border-color: #bfdcd2; color: var(--signal); }
+
+		/* Tables. */
+		table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+		th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+		thead th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: #fafbfb; border-bottom: 1px solid var(--rule-firm); white-space: nowrap; }
+		tbody tr:last-child td { border-bottom: 0; }
+		td.num, th.num { text-align: right; }
+		.price { font-family: var(--data); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+		.price .amount { font-weight: 600; }
+		.dash { color: var(--faint); font-weight: 400; }
+		.tier-name { font-weight: 600; }
+		.who .pid { font-size: 12px; }
+
+		/* Override-behaviour badges — the "when it applies" rule, once per row. */
+		.badge { display: inline-block; margin-left: 6px; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; font-weight: 700; padding: 1px 6px; border-radius: 3px; white-space: nowrap; vertical-align: 1px; }
+		.badge-always { background: var(--signal-soft); color: var(--signal); }
+		.badge-priced { background: #eaeef7; color: #33468c; }
+		.badge-competes { background: #f0f1f2; color: var(--muted); }
+		.legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 0 0 10px; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
+		.legend li { display: flex; gap: 6px; align-items: baseline; }
+
+		/* Quantity breaks. */
+		.breaks { list-style: none; margin: 0; padding: 0; font-size: 13px; font-family: var(--data); font-variant-numeric: tabular-nums; }
+		.breaks li { white-space: nowrap; padding: 1px 0; }
+		.breaks .qty { display: inline-block; min-width: 44px; color: var(--muted); }
+		.breaks .from { color: var(--faint); font-size: 11px; }
+
+		/* Per-row resolution steps in the tier table. */
+		.steps { margin: 0; padding-left: 15px; color: var(--muted); font-size: 12px; font-family: var(--data); }
+
+		/* Reference material — present, but folded away. */
+		details.ref { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 0; }
+		details.ref summary { cursor: pointer; padding: 11px 16px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); list-style: none; }
+		details.ref summary::-webkit-details-marker { display: none; }
+		details.ref summary::before { content: "▸"; display: inline-block; margin-right: 8px; color: var(--faint); transition: transform .15s; }
+		details.ref[open] summary::before { transform: rotate(90deg); }
+		details.ref summary:hover { color: var(--ink); }
+		.ref-body { padding: 0 16px 14px; border-top: 1px solid var(--rule); }
+		.ref-body ol { margin: 12px 0; padding-left: 20px; font-size: 13px; color: var(--muted); }
+		.ref-body ol li { padding: 2px 0; }
+		.ref-body ol li strong { color: var(--ink); }
+
+		@media (max-width: 782px) {
+			.wrap { padding: 0 14px 40px; }
+			.masthead-inner { padding: 12px 14px; }
+			.brand { padding-bottom: 0; }
+			table, thead, tbody, tr, td { display: block; }
+			thead { display: none; }
+			tbody tr { border-bottom: 1px solid var(--rule-firm); padding: 6px 0; }
+			tbody tr:last-child { border-bottom: 0; }
+			td { border-bottom: 0; padding: 3px 12px; }
+			td.num { text-align: left; }
+			td[data-label]::before { content: attr(data-label); display: block; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			* { transition: none !important; }
+		}
 	</style>
 </head>
 <body>
+	<div class="masthead">
+		<div class="masthead-inner">
+			<div class="brand"><?php esc_html_e( 'Pricebook', 'wc-pricebook' ); ?> · <b><?php esc_html_e( 'Price resolution', 'wc-pricebook' ); ?></b></div>
+			<div class="picker">
+				<label for="pb-search"><?php esc_html_e( 'Product', 'wc-pricebook' ); ?></label>
+				<input type="search" id="pb-search" value="<?php echo esc_attr( $product_value ); ?>" placeholder="<?php esc_attr_e( 'Search by name or SKU…', 'wc-pricebook' ); ?>" autocomplete="off">
+				<ul class="results" id="pb-results"></ul>
+			</div>
+			<div class="picker">
+				<label for="pb-user-search"><?php esc_html_e( 'Resolve as customer', 'wc-pricebook' ); ?></label>
+				<input type="search" id="pb-user-search" value="<?php echo esc_attr( $user_value ); ?>" placeholder="<?php echo $product ? esc_attr__( 'Search by name or email…', 'wc-pricebook' ) : esc_attr__( 'Pick a product first', 'wc-pricebook' ); ?>" autocomplete="off"<?php echo $product ? '' : ' disabled'; ?>>
+				<ul class="results" id="pb-user-results"></ul>
+			</div>
+		</div>
+	</div>
+
 	<div class="wrap">
-		<h1><?php esc_html_e( 'Pricebook Flowchart', 'wc-pricebook' ); ?></h1>
-
-		<div class="card">
-			<label for="pb-search"><strong><?php esc_html_e( 'Find a product', 'wc-pricebook' ); ?></strong></label>
-			<input type="search" id="pb-search" value="<?php echo esc_attr( $product_value ); ?>" placeholder="<?php esc_attr_e( 'Type at least 2 characters…', 'wc-pricebook' ); ?>" autocomplete="off">
-			<ul class="results" id="pb-results"></ul>
-		</div>
-
-		<div class="card">
-			<label for="pb-user-search"><strong><?php esc_html_e( 'Resolve as a customer (optional)', 'wc-pricebook' ); ?></strong></label>
-			<input type="search" id="pb-user-search" value="<?php echo esc_attr( $user_value ); ?>" placeholder="<?php esc_attr_e( 'Search customers by name or email…', 'wc-pricebook' ); ?>" autocomplete="off"<?php echo $product ? '' : ' disabled'; ?>>
-			<ul class="results" id="pb-user-results"></ul>
-			<?php if ( ! $product ) : ?><p class="note"><?php esc_html_e( 'Pick a product first, then choose a customer to see the exact price they get and why.', 'wc-pricebook' ); ?></p><?php endif; ?>
-		</div>
+		<?php if ( ! $product ) : ?>
+			<p class="empty"><?php esc_html_e( 'Search for a product to see how its price resolves across every tier.', 'wc-pricebook' ); ?></p>
+		<?php endif; ?>
 
 		<?php if ( $product ) : ?>
-			<div class="card">
-				<?php $product_link = get_permalink( $product_id ); ?>
-				<h2>
-					<?php if ( $product_link ) : ?>
-						<a href="<?php echo esc_url( $product_link ); ?>" target="_blank" rel="noopener"><?php echo esc_html( sprintf( '#%d — %s', $product_id, $product->get_name() ) ); ?></a>
-					<?php else : ?>
-						<?php echo esc_html( sprintf( '#%d — %s', $product_id, $product->get_name() ) ); ?>
-					<?php endif; ?>
-				</h2>
+			<div>
 				<?php
-				$cat_terms = get_the_terms( $product_id, 'product_cat' );
-				$cat_terms = ( is_array( $cat_terms ) ) ? $cat_terms : array();
+				$product_link = get_permalink( $product_id );
+				$cat_terms    = get_the_terms( $product_id, 'product_cat' );
+				$cat_terms    = ( is_array( $cat_terms ) ) ? $cat_terms : array();
 				?>
-				<p class="note" style="margin-top:0;">
-					<strong><?php esc_html_e( 'Product categories:', 'wc-pricebook' ); ?></strong>
-					<?php
-					if ( empty( $cat_terms ) ) {
-						esc_html_e( 'none', 'wc-pricebook' );
-					} else {
-						$cat_labels = array();
-						foreach ( $cat_terms as $cat ) {
-							$cat_labels[] = sprintf( '%s (#%d)', $cat->name, (int) $cat->term_id );
+				<div class="ident">
+					<h1>
+						<span class="pid">#<?php echo (int) $product_id; ?></span>
+						<?php if ( $product_link ) : ?>
+							<a href="<?php echo esc_url( $product_link ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $product->get_name() ); ?></a>
+						<?php else : ?>
+							<?php echo esc_html( $product->get_name() ); ?>
+						<?php endif; ?>
+					</h1>
+					<p class="note" style="margin:0;">
+						<?php
+						if ( empty( $cat_terms ) ) {
+							esc_html_e( 'No product categories', 'wc-pricebook' );
+						} else {
+							$cat_labels = array();
+							foreach ( $cat_terms as $cat ) {
+								$cat_labels[] = sprintf( '%s (#%d)', $cat->name, (int) $cat->term_id );
+							}
+							/* translators: %s: comma-separated product category names. */
+							echo esc_html( sprintf( __( 'Categories: %s', 'wc-pricebook' ), implode( ', ', $cat_labels ) ) );
 						}
-						echo esc_html( implode( ', ', $cat_labels ) );
-					}
+						?>
+					</p>
+				</div>
+
+				<?php
+				// The answer first: what this specific customer pays, and the trail that got
+				// there. Everything below it is the supporting detail.
+				if ( $as_user ) :
+					$base      = (float) get_post_meta( $product_id, $this->config->base_meta()['regular'], true );
+					$u_reg     = $this->engine->price_for_user( $base, $product, $user_id, false );
+					$u_sale    = $this->engine->price_for_user( $base, $product, $user_id, true );
+					$priced_as = $this->context->resolve_pricing_user_id( (int) $user_id );
+					$parent    = ( $priced_as !== (int) $user_id ) ? get_userdata( $priced_as ) : null;
+					$role_user = $parent ? $parent : $as_user;
+					$vis       = $this->context->product_visible_for_user( $product_id, $priced_as );
+
+					$vis_messages = array(
+						'manager'        => __( 'managers see the entire catalog.', 'wc-pricebook' ),
+						'unrestricted'   => __( 'this customer has no catalog visibility restrictions.', 'wc-pricebook' ),
+						'allowed'        => __( 'the product is within this customer\'s allowed categories.', 'wc-pricebook' ),
+						'excluded'       => __( 'the product is in a category this customer is hidden from (Hide visibility).', 'wc-pricebook' ),
+						'not_in_include' => __( 'this customer only sees specific categories, and this product is not one of them.', 'wc-pricebook' ),
+						'forced_role'    => __( 'a per-product Force-product-visible override applies to this customer.', 'wc-pricebook' ),
+					);
+					$vis_text     = isset( $vis_messages[ $vis['reason'] ] ) ? $vis_messages[ $vis['reason'] ] : '';
+					$price_hidden = $this->context->price_hidden_by_visibility_role( $product_id, $priced_as );
+					$price_forced = $this->rules->applies( 'force_visible', $product_id ) || $this->context->user_force_price( $product_id, $priced_as );
 					?>
-				</p>
-				<p class="note"><?php esc_html_e( 'How a customer\'s price is chosen, in order:', 'wc-pricebook' ); ?></p>
-				<ol class="steps">
-					<li><?php esc_html_e( 'A customer-specific price (below), if set for them — beats everything.', 'wc-pricebook' ); ?></li>
-					<li><?php esc_html_e( 'Among the tiers the customer qualifies for: an "Always overrides" tier in its category scope wins outright.', 'wc-pricebook' ); ?></li>
-					<li><?php esc_html_e( 'Otherwise an "Overrides when priced" tier wins only if it has its own price for this product (e.g. operator pricing); with no price it steps aside.', 'wc-pricebook' ); ?></li>
-					<li><?php esc_html_e( 'Otherwise the lowest of the remaining tier prices applies.', 'wc-pricebook' ); ?></li>
-				</ol>
+					<section>
+						<div class="answer">
+							<h2><?php esc_html_e( 'This customer pays', 'wc-pricebook' ); ?></h2>
+							<p class="answer-price">
+								<?php echo $this->price_cell( $u_reg[0], true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+							</p>
+							<?php
+							// Only call it a sale when it actually undercuts the regular price — the
+							// engine reports an equal sale price for products that are not discounted.
+							$has_sale = '' !== (string) $u_sale[0] && null !== $u_sale[0]
+								&& '' !== (string) $u_reg[0] && null !== $u_reg[0]
+								&& (float) $u_sale[0] < (float) $u_reg[0];
+							if ( $has_sale ) :
+								?>
+								<p class="answer-price" style="font-size:15px;margin-top:4px;">
+									<span class="sale"><?php esc_html_e( 'On sale:', 'wc-pricebook' ); ?> <?php echo $this->price_cell( $u_sale[0], false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></span>
+								</p>
+							<?php endif; ?>
+							<p class="who" style="margin-top:10px;">
+								<strong><?php echo esc_html( $as_user->user_login ); ?></strong>
+								<span class="pid">#<?php echo (int) $user_id; ?></span>
+								·
+								<?php
+								/* translators: %s: comma-separated roles used for pricing. */
+								echo esc_html( sprintf( __( 'roles: %s', 'wc-pricebook' ), implode( ', ', (array) $role_user->roles ) ) );
+								?>
+							</p>
+							<?php if ( $parent ) : ?>
+								<p class="flag flag-warn">
+									<?php
+									/* translators: 1: parent account login, 2: parent account ID. */
+									echo esc_html( sprintf( __( 'Sub-account — priced using its parent account %1$s (#%2$d). The roles above are the parent\'s.', 'wc-pricebook' ), $parent->user_login, (int) $priced_as ) );
+									?>
+								</p>
+							<?php endif; ?>
+							<?php if ( ! $vis['visible'] ) : ?>
+								<p class="flag flag-bad">
+									<?php
+									/* translators: %s: reason the product is hidden. */
+									echo esc_html( sprintf( __( 'Hidden from this customer\'s catalog — %s', 'wc-pricebook' ), $vis_text ) );
+									?>
+								</p>
+							<?php else : ?>
+								<p class="flag flag-ok">
+									<?php
+									/* translators: %s: reason the product is visible. */
+									echo esc_html( sprintf( __( 'Visible in catalog — %s', 'wc-pricebook' ), $vis_text ) );
+									?>
+								</p>
+							<?php endif; ?>
+							<?php if ( $price_hidden && $vis['visible'] && ! $price_forced ) : ?>
+								<p class="flag flag-warn">
+									<?php esc_html_e( 'Price hidden for this customer (Call for Price) via a visibility role.', 'wc-pricebook' ); ?>
+								</p>
+							<?php elseif ( $price_hidden && $vis['visible'] && $price_forced ) : ?>
+								<p class="flag flag-ok">
+									<?php esc_html_e( 'A visibility role would hide the price, but a Force-price-visible override shows it to this customer.', 'wc-pricebook' ); ?>
+								</p>
+							<?php endif; ?>
+							<ol class="trace">
+								<?php foreach ( $u_reg[1] as $step ) : ?>
+									<li><?php echo esc_html( $step ); ?></li>
+								<?php endforeach; ?>
+							</ol>
+						</div>
+					</section>
+					<?php
+				endif;
+				?>
+
+				<section>
+					<details class="ref">
+						<summary><?php esc_html_e( 'How a price is chosen', 'wc-pricebook' ); ?></summary>
+						<div class="ref-body">
+							<ol>
+								<li><strong><?php esc_html_e( 'A customer-specific price', 'wc-pricebook' ); ?></strong> — <?php esc_html_e( 'if one is set for them, it beats everything.', 'wc-pricebook' ); ?></li>
+								<li><strong><?php esc_html_e( 'A quantity break', 'wc-pricebook' ); ?></strong> — <?php esc_html_e( 'if the line quantity qualifies, it overrides all tier pricing, even when a tier price would be lower. Only a customer-specific price outranks it.', 'wc-pricebook' ); ?></li>
+								<li><strong><?php esc_html_e( 'An "Always" tier', 'wc-pricebook' ); ?></strong> — <?php esc_html_e( 'among the tiers the customer qualifies for, one that always overrides wins outright in its category scope.', 'wc-pricebook' ); ?></li>
+								<li><strong><?php esc_html_e( 'A "When priced" tier', 'wc-pricebook' ); ?></strong> — <?php esc_html_e( 'wins only if it has its own price for this product (e.g. operator pricing). With no price it steps aside.', 'wc-pricebook' ); ?></li>
+								<li><strong><?php esc_html_e( 'The lowest remaining tier price', 'wc-pricebook' ); ?></strong> — <?php esc_html_e( 'otherwise this applies.', 'wc-pricebook' ); ?></li>
+							</ol>
+							<p class="note"><strong><?php esc_html_e( 'Quantity breaks:', 'wc-pricebook' ); ?></strong> <?php esc_html_e( 'bulk pricing applies only at quantities that meet a break — below the lowest break (e.g. qty 1 when breaks start at 2) the normal tier price stands. Once a break is met, its price is used outright rather than compared against the tier price.', 'wc-pricebook' ); ?></p>
+						</div>
+					</details>
+				</section>
 
 				<?php
 				// Whether this product is genuinely "call for price": empty prices for it
@@ -468,11 +689,12 @@ class Flowchart {
 					}
 				}
 				?>
-				<h3><?php esc_html_e( 'Pricing rules in effect', 'wc-pricebook' ); ?></h3>
+				<section>
+				<h2><?php esc_html_e( 'Pricing rules in effect', 'wc-pricebook' ); ?></h2>
 				<?php if ( empty( $applied_rules ) ) : ?>
-					<p class="note"><?php esc_html_e( 'No pricing rules apply to this product — standard tier resolution only.', 'wc-pricebook' ); ?></p>
+					<p class="card note" style="margin:0;"><?php esc_html_e( 'No pricing rules apply to this product — standard tier resolution only.', 'wc-pricebook' ); ?></p>
 				<?php else : ?>
-					<p class="note"><?php esc_html_e( 'These flags/tags/categories on the product change how its price resolves:', 'wc-pricebook' ); ?></p>
+					<p class="note"><?php esc_html_e( 'These flags, tags, or categories on the product change how its price resolves:', 'wc-pricebook' ); ?></p>
 					<table>
 						<thead>
 							<tr>
@@ -484,7 +706,7 @@ class Flowchart {
 						<tbody>
 							<?php foreach ( $applied_rules as $rule_key => $matched ) : ?>
 								<tr>
-									<td><strong><?php echo esc_html( $rule_descriptions[ $rule_key ]['label'] ?? ucwords( str_replace( '_', ' ', $rule_key ) ) ); ?></strong></td>
+									<td><span class="tier-name"><?php echo esc_html( $rule_descriptions[ $rule_key ]['label'] ?? ucwords( str_replace( '_', ' ', $rule_key ) ) ); ?></span></td>
 									<td class="note"><?php echo esc_html( $rule_descriptions[ $rule_key ]['desc'] ?? '' ); ?></td>
 									<td class="note">
 										<?php
@@ -500,6 +722,7 @@ class Flowchart {
 						</tbody>
 					</table>
 				<?php endif; ?>
+				</section>
 
 				<?php
 				$fv_roles = $this->context->product_force_visible_roles( $product_id );
@@ -510,8 +733,9 @@ class Flowchart {
 				$fp_users = is_array( $fp_users ) ? $fp_users : array();
 				if ( $fv_roles || $fp_roles || $fv_users || $fp_users ) :
 					?>
-					<h3><?php esc_html_e( 'Force visibility overrides', 'wc-pricebook' ); ?></h3>
-					<p class="note"><?php esc_html_e( 'These roles/users always see the product, or its price, overriding any Hide visibility role.', 'wc-pricebook' ); ?></p>
+					<section>
+					<h2><?php esc_html_e( 'Force visibility overrides', 'wc-pricebook' ); ?></h2>
+					<p class="note"><?php esc_html_e( 'These roles and customers always see the product, or its price, overriding any Hide visibility role.', 'wc-pricebook' ); ?></p>
 					<table>
 						<thead>
 							<tr>
@@ -522,177 +746,110 @@ class Flowchart {
 						</thead>
 						<tbody>
 							<tr>
-								<td><strong><?php esc_html_e( 'Force product visible', 'wc-pricebook' ); ?></strong></td>
-								<td class="note"><?php echo esc_html( $fv_roles ? implode( ', ', array_map( array( $this, 'role_label' ), $fv_roles ) ) : '—' ); ?></td>
-								<td class="note"><?php echo esc_html( $fv_users ? implode( ', ', $this->user_labels( $fv_users ) ) : '—' ); ?></td>
+								<td><span class="tier-name"><?php esc_html_e( 'Force product visible', 'wc-pricebook' ); ?></span></td>
+								<td class="note" data-label="<?php esc_attr_e( 'Roles', 'wc-pricebook' ); ?>"><?php echo esc_html( $fv_roles ? implode( ', ', array_map( array( $this, 'role_label' ), $fv_roles ) ) : '—' ); ?></td>
+								<td class="note" data-label="<?php esc_attr_e( 'Users', 'wc-pricebook' ); ?>"><?php echo esc_html( $fv_users ? implode( ', ', $this->user_labels( $fv_users ) ) : '—' ); ?></td>
 							</tr>
 							<tr>
-								<td><strong><?php esc_html_e( 'Force price visible', 'wc-pricebook' ); ?></strong></td>
-								<td class="note"><?php echo esc_html( $fp_roles ? implode( ', ', array_map( array( $this, 'role_label' ), $fp_roles ) ) : '—' ); ?></td>
-								<td class="note"><?php echo esc_html( $fp_users ? implode( ', ', $this->user_labels( $fp_users ) ) : '—' ); ?></td>
+								<td><span class="tier-name"><?php esc_html_e( 'Force price visible', 'wc-pricebook' ); ?></span></td>
+								<td class="note" data-label="<?php esc_attr_e( 'Roles', 'wc-pricebook' ); ?>"><?php echo esc_html( $fp_roles ? implode( ', ', array_map( array( $this, 'role_label' ), $fp_roles ) ) : '—' ); ?></td>
+								<td class="note" data-label="<?php esc_attr_e( 'Users', 'wc-pricebook' ); ?>"><?php echo esc_html( $fp_users ? implode( ', ', $this->user_labels( $fp_users ) ) : '—' ); ?></td>
 							</tr>
 						</tbody>
 					</table>
+					</section>
 					<?php
 				endif;
 				?>
 
-				<?php
-				if ( $as_user ) :
-					$base      = (float) get_post_meta( $product_id, $this->config->base_meta()['regular'], true );
-					$u_reg     = $this->engine->price_for_user( $base, $product, $user_id, false );
-					$u_sale    = $this->engine->price_for_user( $base, $product, $user_id, true );
-					$priced_as = $this->context->resolve_pricing_user_id( (int) $user_id );
-					$parent    = ( $priced_as !== (int) $user_id ) ? get_userdata( $priced_as ) : null;
-					$role_user = $parent ? $parent : $as_user;
-					$vis       = $this->context->product_visible_for_user( $product_id, $priced_as );
-					?>
-					<div class="card" style="background:#f0f6fc;border-color:#c5d9ed;">
-						<h3 style="margin-top:0;">
-							<?php
-							/* translators: 1: customer login, 2: customer ID. */
-							echo esc_html( sprintf( __( 'Price for %1$s (#%2$d)', 'wc-pricebook' ), $as_user->user_login, (int) $user_id ) );
-							?>
-						</h3>
-						<?php if ( $parent ) : ?>
-							<p class="note" style="margin-top:0;">
-								<?php
-								/* translators: 1: parent account login, 2: parent account ID. */
-								echo esc_html( sprintf( __( 'Sub-account — priced using its PARENT account %1$s (#%2$d). The roles below are the parent\'s.', 'wc-pricebook' ), $parent->user_login, (int) $priced_as ) );
-								?>
-							</p>
-						<?php endif; ?>
-						<p class="note" style="margin-top:0;">
-							<?php
-							/* translators: %s: comma-separated roles used for pricing. */
-							echo esc_html( sprintf( __( 'Pricing roles: %s', 'wc-pricebook' ), implode( ', ', (array) $role_user->roles ) ) );
-							?>
-						</p>
-						<?php
-						$vis_messages = array(
-							'manager'        => __( 'managers see the entire catalog.', 'wc-pricebook' ),
-							'unrestricted'   => __( 'this customer has no catalog visibility restrictions.', 'wc-pricebook' ),
-							'allowed'        => __( 'the product is within this customer\'s allowed categories.', 'wc-pricebook' ),
-							'excluded'       => __( 'the product is in a category this customer is hidden from (Hide visibility).', 'wc-pricebook' ),
-							'not_in_include' => __( 'this customer only sees specific categories, and this product is not one of them.', 'wc-pricebook' ),
-							'forced_role'    => __( 'a per-product Force-product-visible override applies to this customer.', 'wc-pricebook' ),
-						);
-						$vis_text     = isset( $vis_messages[ $vis['reason'] ] ) ? $vis_messages[ $vis['reason'] ] : '';
-						$price_hidden = $this->context->price_hidden_by_visibility_role( $product_id, $priced_as );
-						$price_forced = $this->rules->applies( 'force_visible', $product_id ) || $this->context->user_force_price( $product_id, $priced_as );
-						?>
-						<?php if ( ! $vis['visible'] ) : ?>
-							<p class="note" style="margin:0 0 8px;padding:8px 10px;background:#fcf0f1;border:1px solid #f0c0c4;border-radius:4px;color:#b32d2e;font-weight:600;">
-								<?php
-								/* translators: %s: reason the product is hidden. */
-								echo esc_html( sprintf( __( 'HIDDEN from this customer\'s catalog — %s', 'wc-pricebook' ), $vis_text ) );
-								?>
-							</p>
-						<?php else : ?>
-							<p class="note" style="margin-top:0;color:#00701a;font-weight:600;">
-								<?php
-								/* translators: %s: reason the product is visible. */
-								echo esc_html( sprintf( __( 'Catalog visibility: Visible — %s', 'wc-pricebook' ), $vis_text ) );
-								?>
-							</p>
-						<?php endif; ?>
-						<?php if ( $price_hidden && $vis['visible'] && ! $price_forced ) : ?>
-							<p class="note" style="margin:0 0 8px;padding:8px 10px;background:#fcf9e8;border:1px solid #e6d9a2;border-radius:4px;color:#8a6d00;font-weight:600;">
-								<?php esc_html_e( 'Price hidden for this customer (Call for Price) via a visibility role.', 'wc-pricebook' ); ?>
-							</p>
-						<?php elseif ( $price_hidden && $vis['visible'] && $price_forced ) : ?>
-							<p class="note" style="margin:0 0 8px;padding:8px 10px;background:#edf7ed;border:1px solid #b8dfb8;border-radius:4px;color:#00701a;font-weight:600;">
-								<?php esc_html_e( 'A visibility role would hide the price, but a Force-price-visible override shows it to this customer.', 'wc-pricebook' ); ?>
-							</p>
-						<?php endif; ?>
-						<p class="price">
-							<?php esc_html_e( 'Regular:', 'wc-pricebook' ); ?> <?php echo $this->price_cell( $u_reg[0], true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
-							&nbsp;&middot;&nbsp;
-							<?php esc_html_e( 'Sale:', 'wc-pricebook' ); ?> <?php echo $this->price_cell( $u_sale[0], false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
-						</p>
-						<p class="note" style="margin-bottom:2px;"><?php esc_html_e( 'How this price was resolved:', 'wc-pricebook' ); ?></p>
-						<ol class="steps">
-							<?php foreach ( $u_reg[1] as $step ) : ?>
-								<li><?php echo esc_html( $step ); ?></li>
-							<?php endforeach; ?>
-						</ol>
-					</div>
-				<?php endif; ?>
-
-				<table>
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Tier', 'wc-pricebook' ); ?></th>
-							<th><?php esc_html_e( 'When it applies', 'wc-pricebook' ); ?></th>
-							<th><?php esc_html_e( 'Regular', 'wc-pricebook' ); ?></th>
-							<th><?php esc_html_e( 'Sale', 'wc-pricebook' ); ?></th>
-							<th><?php esc_html_e( 'Quantity breaks', 'wc-pricebook' ); ?></th>
-							<th><?php esc_html_e( 'Resolution steps', 'wc-pricebook' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( $tiers as $tier_key => $label ) : ?>
-							<?php
-							$regular  = $this->engine->price_as_tier( $product_id, $tier_key, false );
-							$sale     = $this->engine->price_as_tier( $product_id, $tier_key, true );
-							$breaks   = 'msrp' === $tier_key ? array() : $this->engine->bulk_breaks( $product_id, $tier_key );
-							$tier_cfg = 'msrp' === $tier_key ? null : $this->config->tier( $tier_key );
-							$override = $tier_cfg ? (string) $tier_cfg['override'] : '';
-							if ( 'always' === $override ) {
-								$applies = __( 'Always overrides other tiers (in its category scope).', 'wc-pricebook' );
-							} elseif ( 'when_priced' === $override ) {
-								$applies = __( 'Overrides other tiers only when this tier has its own price set; otherwise it steps aside and the lowest tier price applies.', 'wc-pricebook' );
-							} else {
-								$applies = __( 'Competes on price — the lowest tier the customer qualifies for wins.', 'wc-pricebook' );
-							}
-							?>
+				<section>
+					<h2><?php esc_html_e( 'Tier prices', 'wc-pricebook' ); ?></h2>
+					<ul class="legend">
+						<li><span class="badge badge-always"><?php esc_html_e( 'Always', 'wc-pricebook' ); ?></span> <?php esc_html_e( 'wins outright in its category scope', 'wc-pricebook' ); ?></li>
+						<li><span class="badge badge-priced"><?php esc_html_e( 'When priced', 'wc-pricebook' ); ?></span> <?php esc_html_e( 'wins only if it prices this product', 'wc-pricebook' ); ?></li>
+						<li><span class="badge badge-competes"><?php esc_html_e( 'Competes', 'wc-pricebook' ); ?></span> <?php esc_html_e( 'lowest qualifying price wins', 'wc-pricebook' ); ?></li>
+					</ul>
+					<table>
+						<thead>
 							<tr>
-								<td><strong><?php echo esc_html( $label ); ?></strong></td>
-								<td class="note"><?php echo esc_html( $applies ); ?></td>
-								<td class="price"><?php echo $this->price_cell( $regular[0], $is_cfp ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></td>
-								<td class="price"><?php echo $this->price_cell( $sale[0], false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></td>
-								<td>
-									<?php if ( empty( $breaks ) ) : ?>
-										—
-									<?php else : ?>
-										<ul class="breaks">
-											<?php foreach ( $breaks as $break ) : ?>
-												<?php
-												$range = (int) $break['max_qty'] > 0
-													? sprintf( '%d&ndash;%d', (int) $break['min_qty'], (int) $break['max_qty'] )
-													: sprintf( '%d+', (int) $break['min_qty'] );
-												?>
-												<li>
-													<span class="qty"><?php echo wp_kses_post( $range ); ?></span>:
-													<span class="price"><?php echo wp_kses_post( wc_price( $break['price'] ) ); ?></span>
-													<?php if ( '' !== (string) $regular[0] ) : ?>
-														<span class="from">
-															<?php
-															/* translators: %s: the tier's regular (pre-quantity-break) price the bulk price is discounted from. */
-															printf( esc_html__( 'from %s', 'wc-pricebook' ), wp_kses_post( wc_price( $regular[0] ) ) );
-															?>
-														</span>
-													<?php endif; ?>
-												</li>
-											<?php endforeach; ?>
-										</ul>
-									<?php endif; ?>
-								</td>
-								<td>
-									<?php if ( ! empty( $breaks ) ) : ?>
-										<span class="note"><?php esc_html_e( 'Quantity-based — see breaks', 'wc-pricebook' ); ?></span>
-									<?php else : ?>
-										<ol class="steps">
-											<?php foreach ( $regular[1] as $step ) : ?>
-												<li><?php echo esc_html( $step ); ?></li>
-											<?php endforeach; ?>
-										</ol>
-									<?php endif; ?>
-								</td>
+								<th><?php esc_html_e( 'Tier', 'wc-pricebook' ); ?></th>
+								<th class="num"><?php esc_html_e( 'Regular', 'wc-pricebook' ); ?></th>
+								<th class="num"><?php esc_html_e( 'Sale', 'wc-pricebook' ); ?></th>
+								<th><?php esc_html_e( 'Quantity breaks', 'wc-pricebook' ); ?></th>
+								<th><?php esc_html_e( 'Resolution steps', 'wc-pricebook' ); ?></th>
 							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							<?php foreach ( $tiers as $tier_key => $label ) : ?>
+								<?php
+								$regular  = $this->engine->price_as_tier( $product_id, $tier_key, false );
+								$sale     = $this->engine->price_as_tier( $product_id, $tier_key, true );
+								$breaks   = 'msrp' === $tier_key ? array() : $this->engine->bulk_breaks( $product_id, $tier_key );
+								$tier_cfg = 'msrp' === $tier_key ? null : $this->config->tier( $tier_key );
+								$override = $tier_cfg ? (string) $tier_cfg['override'] : '';
+								if ( 'always' === $override ) {
+									$badge_class = 'badge-always';
+									$badge_text  = __( 'Always', 'wc-pricebook' );
+								} elseif ( 'when_priced' === $override ) {
+									$badge_class = 'badge-priced';
+									$badge_text  = __( 'When priced', 'wc-pricebook' );
+								} else {
+									$badge_class = 'badge-competes';
+									$badge_text  = __( 'Competes', 'wc-pricebook' );
+								}
+								?>
+								<tr>
+									<td>
+										<span class="tier-name"><?php echo esc_html( $label ); ?></span>
+										<?php if ( 'msrp' !== $tier_key ) : ?>
+											<span class="badge <?php echo esc_attr( $badge_class ); ?>"><?php echo esc_html( $badge_text ); ?></span>
+										<?php endif; ?>
+									</td>
+									<td class="price num" data-label="<?php esc_attr_e( 'Regular', 'wc-pricebook' ); ?>"><?php echo $this->price_cell( $regular[0], $is_cfp ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></td>
+									<td class="price num" data-label="<?php esc_attr_e( 'Sale', 'wc-pricebook' ); ?>"><?php echo $this->price_cell( $sale[0], false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></td>
+									<td data-label="<?php esc_attr_e( 'Quantity breaks', 'wc-pricebook' ); ?>">
+										<?php if ( empty( $breaks ) ) : ?>
+											<span class="dash">—</span>
+										<?php else : ?>
+											<ul class="breaks">
+												<?php foreach ( $breaks as $break ) : ?>
+													<?php
+													$range = (int) $break['max_qty'] > 0
+														? sprintf( '%d&ndash;%d', (int) $break['min_qty'], (int) $break['max_qty'] )
+														: sprintf( '%d+', (int) $break['min_qty'] );
+													?>
+													<li>
+														<span class="qty"><?php echo wp_kses_post( $range ); ?></span>
+														<span class="price"><?php echo wp_kses_post( wc_price( $break['price'] ) ); ?></span>
+														<?php if ( '' !== (string) $regular[0] ) : ?>
+															<span class="from">
+																<?php
+																/* translators: %s: the tier's regular (pre-quantity-break) price the bulk price is discounted from. */
+																printf( esc_html__( 'from %s', 'wc-pricebook' ), wp_kses_post( wc_price( $regular[0] ) ) );
+																?>
+															</span>
+														<?php endif; ?>
+													</li>
+												<?php endforeach; ?>
+											</ul>
+										<?php endif; ?>
+									</td>
+									<td data-label="<?php esc_attr_e( 'Resolution steps', 'wc-pricebook' ); ?>">
+										<?php if ( ! empty( $breaks ) ) : ?>
+											<span class="note"><?php esc_html_e( 'Quantity-based — see breaks', 'wc-pricebook' ); ?></span>
+										<?php else : ?>
+											<ol class="steps">
+												<?php foreach ( $regular[1] as $step ) : ?>
+													<li><?php echo esc_html( $step ); ?></li>
+												<?php endforeach; ?>
+											</ol>
+										<?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</section>
 
 				<?php
 				// Bulk rows keyed by a role / MSRP Customer that is not a configured pricing
@@ -702,8 +859,9 @@ class Flowchart {
 				$extra_bulk = array_diff_key( $bulk_all, $tiers );
 				if ( ! empty( $extra_bulk ) ) :
 					?>
-					<h3><?php esc_html_e( 'Role-targeted quantity breaks', 'wc-pricebook' ); ?></h3>
-					<p class="note"><?php esc_html_e( 'Bulk pricing set for roles that are not configured pricing tiers. It applies to any customer who has the role (lowest applicable price wins).', 'wc-pricebook' ); ?></p>
+					<section>
+					<h2><?php esc_html_e( 'Role-targeted quantity breaks', 'wc-pricebook' ); ?></h2>
+					<p class="note"><?php esc_html_e( 'Bulk pricing set for roles that are not configured pricing tiers. It applies to any customer who has the role — the lowest applicable price wins.', 'wc-pricebook' ); ?></p>
 					<table>
 						<thead>
 							<tr>
@@ -714,16 +872,16 @@ class Flowchart {
 						<tbody>
 							<?php foreach ( array_keys( $extra_bulk ) as $bulk_key ) : ?>
 								<tr>
-									<td><strong><?php echo esc_html( $this->role_label( (string) $bulk_key ) ); ?></strong></td>
-									<td>
+									<td><span class="tier-name"><?php echo esc_html( $this->role_label( (string) $bulk_key ) ); ?></span></td>
+									<td data-label="<?php esc_attr_e( 'Quantity breaks', 'wc-pricebook' ); ?>">
 										<?php $break_rows = $this->engine->bulk_breaks( $product_id, (string) $bulk_key ); ?>
 										<?php if ( empty( $break_rows ) ) : ?>
-											<span class="note">—</span>
+											<span class="dash">—</span>
 										<?php else : ?>
 											<ul class="breaks">
 												<?php foreach ( $break_rows as $b ) : ?>
 													<li>
-														<span class="qty"><?php echo esc_html( 0 === (int) $b['max_qty'] ? sprintf( '%d+', (int) $b['min_qty'] ) : sprintf( '%1$d–%2$d', (int) $b['min_qty'], (int) $b['max_qty'] ) ); ?>:</span>
+														<span class="qty"><?php echo esc_html( 0 === (int) $b['max_qty'] ? sprintf( '%d+', (int) $b['min_qty'] ) : sprintf( '%1$d–%2$d', (int) $b['min_qty'], (int) $b['max_qty'] ) ); ?></span>
 														<?php echo $this->price_cell( $b['price'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 													</li>
 												<?php endforeach; ?>
@@ -734,18 +892,20 @@ class Flowchart {
 							<?php endforeach; ?>
 						</tbody>
 					</table>
+					</section>
 					<?php
 				endif;
 				?>
 
 				<?php if ( ! empty( $user_rows ) ) : ?>
-					<h3><?php esc_html_e( 'Customer-specific prices', 'wc-pricebook' ); ?></h3>
+					<section>
+					<h2><?php esc_html_e( 'Customer-specific prices', 'wc-pricebook' ); ?></h2>
 					<p class="note"><?php esc_html_e( 'A price set here for a customer wins over every tier and quantity-break price for that customer.', 'wc-pricebook' ); ?></p>
 					<table>
 						<thead>
 							<tr>
 								<th><?php esc_html_e( 'Customer', 'wc-pricebook' ); ?></th>
-								<th><?php esc_html_e( 'Price', 'wc-pricebook' ); ?></th>
+								<th class="num"><?php esc_html_e( 'Price', 'wc-pricebook' ); ?></th>
 							</tr>
 						</thead>
 						<tbody>
@@ -758,14 +918,16 @@ class Flowchart {
 								$user = get_userdata( $uid );
 								$name = $user ? sprintf( '%s (#%d)', $user->display_name, $uid ) : sprintf( '#%d', $uid );
 								printf(
-									'<tr><td>%s</td><td class="price">%s</td></tr>',
+									'<tr><td><span class="tier-name">%s</span></td><td class="price num" data-label="%s">%s</td></tr>',
 									esc_html( $name ),
+									esc_attr__( 'Price', 'wc-pricebook' ),
 									$this->price_cell( $row['price'], false ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 								);
 							}
 							?>
 						</tbody>
 					</table>
+					</section>
 				<?php endif; ?>
 			</div>
 		<?php endif; ?>
