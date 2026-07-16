@@ -284,6 +284,100 @@ class Flowchart {
 	}
 
 	/**
+	 * Whether two resolved prices are the same amount. Compared numerically on
+	 * purpose: the engine's tier and bulk paths return the same amount in different
+	 * shapes ('595' vs '595.00'), so a string comparison reports false differences.
+	 *
+	 * @param mixed $a First price ('' / null when unpriced).
+	 * @param mixed $b Second price.
+	 * @return bool
+	 */
+	private static function prices_equal( $a, $b ) {
+		$a_empty = ( '' === (string) $a || null === $a );
+		$b_empty = ( '' === (string) $b || null === $b );
+		if ( $a_empty || $b_empty ) {
+			return $a_empty && $b_empty;
+		}
+		return abs( (float) $a - (float) $b ) < 0.0001;
+	}
+
+	/**
+	 * The per-unit price a customer actually pays at each quantity, as contiguous
+	 * ranges, for products whose price moves with quantity.
+	 *
+	 * Which bulk rows reach a given customer is the engine's business (it weighs tier
+	 * membership, role-targeted rows, switcher previews and customer-specific
+	 * overrides, and keeps that resolution private). So rather than re-deriving it
+	 * here and risking drift, this probes the engine's own quantity pricing at every
+	 * break quantity configured on the product and keeps the points where the price
+	 * changes. What it reports is therefore what the cart charges, by construction.
+	 *
+	 * @param mixed       $base       Base regular price passed to the engine.
+	 * @param \WC_Product $product    Product.
+	 * @param int         $product_id Product ID.
+	 * @param int         $user_id    Customer to resolve for.
+	 * @return array<int,array{min:int,max:int,price:mixed,is_bulk:bool}> Ranges in
+	 *         quantity order, or an empty array when quantity does not change the price.
+	 */
+	private function customer_qty_ladder( $base, $product, $product_id, $user_id ) {
+		$bulk_meta = $this->config->bulk_pricing_meta();
+		$bulk_all  = '' !== $bulk_meta ? get_post_meta( $product_id, $bulk_meta, true ) : array();
+		if ( ! is_array( $bulk_all ) || empty( $bulk_all ) ) {
+			return array();
+		}
+
+		// Every quantity at which any configured break could start, whoever it targets.
+		$qtys = array( 1 );
+		foreach ( $bulk_all as $rows ) {
+			foreach ( (array) $rows as $row ) {
+				if ( is_array( $row ) && isset( $row['min_qty'] ) && (int) $row['min_qty'] > 0 ) {
+					$qtys[] = (int) $row['min_qty'];
+				}
+			}
+		}
+		$qtys = array_values( array_unique( $qtys ) );
+		sort( $qtys );
+
+		// The tier price with quantity out of the picture, to tell a bulk-driven price
+		// from the tier price it replaced. A rung is only called a quantity break when
+		// it moves the amount: a break that resolves to the same amount as the tier
+		// changes nothing the customer would notice, so labelling it one would be noise.
+		$tier_only = $this->engine->effective_price( $base, $product, $user_id );
+
+		// Keep only the quantities where this customer's price actually changes.
+		$points = array();
+		$prev   = null;
+		foreach ( $qtys as $qty ) {
+			$price = $this->engine->effective_price_qty( $base, $product, $qty, $user_id );
+			if ( null !== $prev && self::prices_equal( $price, $prev ) ) {
+				continue;
+			}
+			$points[] = array(
+				'qty'     => $qty,
+				'price'   => $price,
+				'is_bulk' => ! self::prices_equal( $price, $tier_only ),
+			);
+			$prev     = $price;
+		}
+
+		// A single point means quantity never moves the price — nothing to show.
+		if ( count( $points ) < 2 ) {
+			return array();
+		}
+
+		$ladder = array();
+		foreach ( $points as $i => $point ) {
+			$ladder[] = array(
+				'min'     => (int) $point['qty'],
+				'max'     => isset( $points[ $i + 1 ] ) ? (int) $points[ $i + 1 ]['qty'] - 1 : 0,
+				'price'   => $point['price'],
+				'is_bulk' => (bool) $point['is_bulk'],
+			);
+		}
+		return $ladder;
+	}
+
+	/**
 	 * Display label for a role/tier key used in bulk or force targeting: the tier's
 	 * label, "MSRP Customer" for the synthetic key, the WP role name, or the raw slug.
 	 *
@@ -476,6 +570,19 @@ class Flowchart {
 		.badge-always { background: var(--signal-soft); color: var(--signal); }
 		.badge-priced { background: #eaeef7; color: #33468c; }
 		.badge-competes { background: #f0f1f2; color: var(--muted); }
+		.badge-bulk { background: var(--caution-soft); color: var(--caution); vertical-align: 8px; }
+
+		/* Price-by-quantity ladder: the headline figure is one rung of this. */
+		.ladder-wrap { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule); }
+		.ladder-title { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 6px; }
+		.ladder { list-style: none; margin: 0; padding: 0; }
+		.ladder li { display: flex; align-items: baseline; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--rule); }
+		.ladder li:last-child { border-bottom: 0; }
+		.ladder .qty { font-family: var(--data); font-variant-numeric: tabular-nums; color: var(--muted); min-width: 68px; }
+		.ladder .price { font-family: var(--data); font-variant-numeric: tabular-nums; font-weight: 600; min-width: 90px; }
+		.ladder .rung-tag { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+		.ladder li.is-bulk .price { color: var(--caution); }
+		.ladder li.is-bulk .rung-tag { color: var(--caution); }
 		.legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 0 0 10px; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
 		.legend li { display: flex; gap: 6px; align-items: baseline; }
 
@@ -601,12 +708,22 @@ class Flowchart {
 					$vis_text     = isset( $vis_messages[ $vis['reason'] ] ) ? $vis_messages[ $vis['reason'] ] : '';
 					$price_hidden = $this->context->price_hidden_by_visibility_role( $product_id, $priced_as );
 					$price_forced = $this->rules->applies( 'force_visible', $product_id ) || $this->context->user_force_price( $product_id, $priced_as );
+
+					// The headline price is the single-unit price. When quantity moves it, say
+					// so next to the figure rather than letting it read as the whole story.
+					$ladder     = $this->customer_qty_ladder( $base, $product, $product_id, (int) $user_id );
+					$qty1_bulk  = ! empty( $ladder ) && $ladder[0]['is_bulk'];
 					?>
 					<section>
 						<div class="answer">
-							<h2><?php esc_html_e( 'This customer pays', 'wc-pricebook' ); ?></h2>
+							<h2>
+								<?php echo $ladder ? esc_html__( 'This customer pays, at quantity 1', 'wc-pricebook' ) : esc_html__( 'This customer pays', 'wc-pricebook' ); ?>
+							</h2>
 							<p class="answer-price">
 								<?php echo $this->price_cell( $u_reg[0], true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+								<?php if ( $qty1_bulk ) : ?>
+									<span class="badge badge-bulk"><?php esc_html_e( 'Bulk price', 'wc-pricebook' ); ?></span>
+								<?php endif; ?>
 							</p>
 							<?php
 							// Only call it a sale when it actually undercuts the regular price — the
@@ -666,6 +783,32 @@ class Flowchart {
 									<li><?php echo esc_html( $step ); ?></li>
 								<?php endforeach; ?>
 							</ol>
+
+							<?php if ( $ladder ) : ?>
+								<div class="ladder-wrap">
+									<h3 class="ladder-title"><?php esc_html_e( 'Price by quantity', 'wc-pricebook' ); ?></h3>
+									<p class="note" style="margin-bottom:8px;"><?php esc_html_e( 'This product is bulk priced for this customer — the per-unit price they pay depends on how many they order.', 'wc-pricebook' ); ?></p>
+									<ul class="ladder">
+										<?php foreach ( $ladder as $rung ) : ?>
+											<li<?php echo $rung['is_bulk'] ? ' class="is-bulk"' : ''; ?>>
+												<span class="qty">
+													<?php
+													echo esc_html(
+														$rung['max'] > 0
+															? sprintf( '%1$d–%2$d', $rung['min'], $rung['max'] )
+															: sprintf( '%d+', $rung['min'] )
+													);
+													?>
+												</span>
+												<span class="price"><?php echo $this->price_cell( $rung['price'], true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></span>
+												<span class="rung-tag">
+													<?php echo $rung['is_bulk'] ? esc_html__( 'quantity break', 'wc-pricebook' ) : esc_html__( 'tier price', 'wc-pricebook' ); ?>
+												</span>
+											</li>
+										<?php endforeach; ?>
+									</ul>
+								</div>
+							<?php endif; ?>
 						</div>
 					</section>
 					<?php
