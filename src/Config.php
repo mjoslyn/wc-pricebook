@@ -255,6 +255,7 @@ class Config {
 			$role       = is_array( $role ) ? $role : array();
 			$key        = isset( $role['key'] ) ? $role['key'] : $key;
 			$want       = isset( $role['roles'] ) && is_array( $role['roles'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $role['roles'] ) ) ) ) : array();
+			$except     = isset( $role['exclude_roles'] ) && is_array( $role['exclude_roles'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $role['exclude_roles'] ) ) ) ) : array();
 			$users      = isset( $role['users'] ) && is_array( $role['users'] ) ? array_values( array_unique( array_filter( array_map( 'intval', $role['users'] ) ) ) ) : array();
 			$match      = isset( $role['match'] ) && 'all' === $role['match'] ? 'all' : 'any';
 			// Category SET ({ mode, categories }) — the same scoping model as pricing tiers.
@@ -265,6 +266,8 @@ class Config {
 				'key'        => $key,
 				'label'      => isset( $role['label'] ) ? $role['label'] : ucfirst( $key ),
 				'roles'      => $want,
+				// Users holding any of these roles are exempt even if they match `roles`.
+				'exclude_roles' => $except,
 				'users'      => $users,
 				'match'      => $match,
 				'categories' => $categories,

@@ -261,12 +261,14 @@ class Settings {
 			}
 
 			$roles       = isset( $row['roles'] ) && is_array( $row['roles'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $row['roles'] ) ) ) ) : array();
+			$exclude     = isset( $row['exclude_roles'] ) && is_array( $row['exclude_roles'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $row['exclude_roles'] ) ) ) ) : array();
 			$users       = isset( $row['users'] ) && is_array( $row['users'] ) ? array_values( array_unique( array_filter( array_map( 'absint', $row['users'] ) ) ) ) : array();
 			$match       = isset( $row['match'] ) && 'all' === $row['match'] ? 'all' : 'any';
 			$out[ $key ] = array(
 				'key'             => $key,
 				'label'           => sanitize_text_field( $row['label'] ?? ucfirst( $key ) ),
 				'roles'           => $roles,
+				'exclude_roles'   => $exclude,
 				'users'           => $users,
 				'match'           => $match,
 				'categories'      => $this->sanitize_category_set( $row['categories'] ?? array() ),
@@ -830,6 +832,18 @@ class Settings {
 						<?php endforeach; ?>
 					</select>
 					<p class="description"><?php esc_html_e( 'Users are matched by these roles. "MSRP Customer" matches anyone without a pricing tier (retail customers, subscribers, guests).', 'wc-pricebook' ); ?></p>
+				</div>
+				<div class="wc-pricebook-field wc-pricebook-field--full">
+					<label><?php esc_html_e( 'Except roles', 'wc-pricebook' ); ?></label>
+					<?php
+					$excluded_roles = isset( $role['exclude_roles'] ) && is_array( $role['exclude_roles'] ) ? array_map( 'strval', $role['exclude_roles'] ) : array();
+					?>
+					<select multiple class="wc-enhanced-select" name="<?php echo esc_attr( $base . '[exclude_roles][]' ); ?>" style="width:100%;" data-placeholder="<?php esc_attr_e( 'Select roles to exempt&hellip;', 'wc-pricebook' ); ?>">
+						<?php foreach ( $this->role_options() as $slug => $role_label ) : ?>
+							<option value="<?php echo esc_attr( (string) $slug ); ?>" <?php echo in_array( (string) $slug, $excluded_roles, true ) ? 'selected="selected"' : ''; ?>><?php echo esc_html( $role_label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<p class="description"><?php esc_html_e( 'A user holding any of these roles is exempt from this rule, even if they match the roles above (e.g. hide a tier’s pricing except for users who are also dealer/operator).', 'wc-pricebook' ); ?></p>
 				</div>
 				<div class="wc-pricebook-field wc-pricebook-field--full">
 					<label><?php esc_html_e( 'Specific users', 'wc-pricebook' ); ?></label>

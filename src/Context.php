@@ -572,8 +572,24 @@ class Context {
 		foreach ( $want as $slug ) {
 			$hits[] = ( self::MSRP_CUSTOMER === $slug ) ? (bool) $is_msrp : in_array( $slug, $user_roles, true );
 		}
+		$matched = 'all' === $match ? ! in_array( false, $hits, true ) : in_array( true, $hits, true );
+		if ( ! $matched ) {
+			return false;
+		}
 
-		return 'all' === $match ? ! in_array( false, $hits, true ) : in_array( true, $hits, true );
+		// Exclude roles: a user holding ANY of these is exempt from this visibility role,
+		// even though they matched the include roles above. Lets a role-based rule carve
+		// out users who hold a broader entitlement — e.g. hide a tier's pricing EXCEPT for
+		// users who are also dealer/operator. The synthetic MSRP_CUSTOMER is honored here
+		// too. Explicit per-user targeting (above) is not affected.
+		$except = isset( $role['exclude_roles'] ) && is_array( $role['exclude_roles'] ) ? $role['exclude_roles'] : array();
+		foreach ( $except as $slug ) {
+			if ( ( self::MSRP_CUSTOMER === $slug ) ? (bool) $is_msrp : in_array( $slug, $user_roles, true ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**

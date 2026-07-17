@@ -252,6 +252,32 @@ class ContextTest extends TestCase {
 		$this->assertSame( array(), $this->context->visibility_role_categories( 6 )['exclude'] );
 	}
 
+	public function test_visibility_role_exclude_roles_exempt_matched_users() {
+		// Include parts_dealer, but exempt anyone who is also dealer/operator — the Fenton
+		// case: hide restricted-category pricing from a parts-only dealer, while a
+		// parts_dealer who is also a dealer/operator keeps seeing prices.
+		$this->with_visibility_roles(
+			array(
+				'r' => array(
+					'label'         => 'R',
+					'roles'         => array( 'parts_dealer' ),
+					'exclude_roles' => array( 'dealer', 'operator' ),
+					'match'         => 'any',
+					'categories'    => array( 'mode' => 'include', 'categories' => array( 555 ) ),
+					'hide'          => 'product',
+				),
+			)
+		);
+		Store::add_user( 5, array( 'customer', 'parts_dealer' ) );           // parts only → matched.
+		Store::add_user( 6, array( 'parts_dealer', 'dealer' ) );             // also dealer → exempt.
+		Store::add_user( 7, array( 'parts_dealer', 'operator' ) );           // also operator → exempt.
+		Store::add_user( 8, array( 'customer' ) );                           // not parts → no include match.
+		$this->assertSame( array( 555 ), $this->context->visibility_role_categories( 5 )['exclude'] );
+		$this->assertSame( array(), $this->context->visibility_role_categories( 6 )['exclude'] );
+		$this->assertSame( array(), $this->context->visibility_role_categories( 7 )['exclude'] );
+		$this->assertSame( array(), $this->context->visibility_role_categories( 8 )['exclude'] );
+	}
+
 	public function test_role_targeting_is_capability_based() {
 		// Role targeting (visibility roles, force overrides, bulk pricing) uses the same
 		// capability check as tier membership: user_can($user, $slug). A capability
