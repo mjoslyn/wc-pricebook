@@ -315,10 +315,13 @@ class PriceEngine {
 			$user_id = $this->context->resolve_pricing_user_id( $user_id );
 		}
 
-		// Manager switcher override (only for the current-user context).
+		// Manager switcher override (only for the current-user context). 'msrp' is a
+		// valid preview target: price_as_tier() resolves it to the base tier (applying
+		// any sale), which is what a manager previewing MSRP expects to see — not the
+		// manager's own default/native price (e.g. a bundle's live-computed price).
 		if ( ! $explicit_user && $this->context->is_manager() ) {
 			$switcher_role = $this->context->switcher_role();
-			if ( '' !== $switcher_role && 'msrp' !== $switcher_role ) {
+			if ( '' !== $switcher_role ) {
 				return $this->price_as_tier( $product_id, $switcher_role, $sale );
 			}
 		}
@@ -658,7 +661,7 @@ class PriceEngine {
 		// A manager previewing as a tier via the switcher sees only that tier's breaks.
 		if ( ! $explicit && $this->context->is_manager() ) {
 			$switcher = $this->context->switcher_role();
-			if ( '' !== $switcher && 'msrp' !== $switcher ) {
+			if ( '' !== $switcher ) {
 				return $keys;
 			}
 		}
@@ -693,7 +696,7 @@ class PriceEngine {
 	private function resolved_tier_keys( $product_id, $user_id, $explicit ) {
 		if ( ! $explicit && $this->context->is_manager() ) {
 			$switcher = $this->context->switcher_role();
-			if ( '' !== $switcher && 'msrp' !== $switcher ) {
+			if ( '' !== $switcher ) {
 				return array( $switcher );
 			}
 		}

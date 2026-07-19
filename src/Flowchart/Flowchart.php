@@ -691,7 +691,10 @@ class Flowchart {
 				if ( $as_user ) :
 					$base      = (float) get_post_meta( $product_id, $this->config->base_meta()['regular'], true );
 					$u_reg     = $this->engine->price_for_user( $base, $product, $user_id, false );
-					$u_sale    = $this->engine->price_for_user( $base, $product, $user_id, true );
+					// What the customer actually pays: the effective (sale-applied) price,
+					// not the regular tier price. price_for_user( ..., true ) alone is fed the
+					// regular base and misses a storewide/bundle sale; effective_price resolves it.
+					$paid      = $this->engine->effective_price( $base, $product, $user_id );
 					$priced_as = $this->context->resolve_pricing_user_id( (int) $user_id );
 					$parent    = ( $priced_as !== (int) $user_id ) ? get_userdata( $priced_as ) : null;
 					$role_user = $parent ? $parent : $as_user;
@@ -720,21 +723,21 @@ class Flowchart {
 								<?php echo $ladder ? esc_html__( 'This customer pays, at quantity 1', 'wc-pricebook' ) : esc_html__( 'This customer pays', 'wc-pricebook' ); ?>
 							</h2>
 							<p class="answer-price">
-								<?php echo $this->price_cell( $u_reg[0], true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+								<?php echo $this->price_cell( $paid, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 								<?php if ( $qty1_bulk ) : ?>
 									<span class="badge badge-bulk"><?php esc_html_e( 'Bulk price', 'wc-pricebook' ); ?></span>
 								<?php endif; ?>
 							</p>
 							<?php
-							// Only call it a sale when it actually undercuts the regular price — the
-							// engine reports an equal sale price for products that are not discounted.
-							$has_sale = '' !== (string) $u_sale[0] && null !== $u_sale[0]
+							// On sale when what they pay undercuts the regular tier price — show the
+							// struck-through regular for context (the headline already shows the sale).
+							$has_sale = '' !== (string) $paid && null !== $paid
 								&& '' !== (string) $u_reg[0] && null !== $u_reg[0]
-								&& (float) $u_sale[0] < (float) $u_reg[0];
+								&& (float) $paid < (float) $u_reg[0];
 							if ( $has_sale ) :
 								?>
 								<p class="answer-price" style="font-size:15px;margin-top:4px;">
-									<span class="sale"><?php esc_html_e( 'On sale:', 'wc-pricebook' ); ?> <?php echo $this->price_cell( $u_sale[0], false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></span>
+									<span class="sale"><?php esc_html_e( 'Regular:', 'wc-pricebook' ); ?> <s><?php echo $this->price_cell( $u_reg[0], false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></s></span>
 								</p>
 							<?php endif; ?>
 							<p class="who" style="margin-top:10px;">

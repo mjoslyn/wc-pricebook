@@ -920,4 +920,30 @@ class PriceEngineTest extends TestCase {
 		$product = new FakeProduct( 10 );
 		$this->assertSame( '70', $this->engine->price_for_user( null, $product, null, false )[0] );
 	}
+
+	public function test_switcher_msrp_shows_base_not_managers_own_tier() {
+		// Regression: 'msrp' was excluded from the switcher override, so a manager
+		// previewing as MSRP fell through to their own tier (or a bundle's native
+		// price) instead of the MSRP/base price. A manager who is also a dealer,
+		// previewing MSRP, must see the base 100 — not their dealer price 70.
+		$this->set_meta( 10, array( '_regular_price' => '100', 'dealer_price' => '70' ) );
+		Store::add_user( 9, array( 'shop_manager', 'dealer' ), array( 'manage_woocommerce' ) );
+		Store::$current_user = 9;
+		Store::$user_meta[9]['pricebook_switcher_role'] = 'msrp';
+
+		$product = new FakeProduct( 10 );
+		$this->assertSame( '100', (string) $this->engine->price_for_user( null, $product, null, false )[0] );
+	}
+
+	public function test_switcher_msrp_applies_sale() {
+		// Previewing as MSRP must apply the MSRP sale price, matching what a real MSRP
+		// customer pays (the switcher/flowchart bug where the sale was not resolved).
+		$this->set_meta( 10, array( '_regular_price' => '100', '_sale_price' => '80' ) );
+		Store::add_user( 9, array( 'shop_manager', 'dealer' ), array( 'manage_woocommerce' ) );
+		Store::$current_user = 9;
+		Store::$user_meta[9]['pricebook_switcher_role'] = 'msrp';
+
+		$product = new FakeProduct( 10 );
+		$this->assertSame( '80', (string) $this->engine->price_for_user( null, $product, null, true )[0] );
+	}
 }
