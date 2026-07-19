@@ -426,14 +426,26 @@ class CatalogPdf {
 					continue;
 				}
 
+				// The viewer's own price. When it resolves to empty the price is hidden
+				// for them — a "Hide pricing" visibility role, a call-for-price product,
+				// etc. In the restricted (non-manager) view, suppress EVERY price cell,
+				// MSRP included, so a gated price never leaks as its MSRP. The MSRP column
+				// uses price_as_tier(), which does not know about the pricing gate, so
+				// without this it would print the MSRP even where "Your Price" is blank.
+				$user_result = $this->engine->price_for_user( null, $wc_product );
+				$user_price  = is_array( $user_result ) ? $user_result[0] : $user_result;
+				$hide_price  = ! $show_all && ( '' === (string) $user_price || 0.0 === (float) $user_price );
+
 				echo '<tr>';
 				echo '<td>' . esc_html( $product->post_title ) . '</td>';
 				echo '<td>' . esc_html( $wc_product->get_sku() ) . '</td>';
 				foreach ( array_keys( $columns ) as $tier_key ) {
-					echo '<td>' . wp_kses_post( $this->tier_cell( $product->ID, $tier_key ) ) . '</td>';
+					$cell = $hide_price ? $this->call_for_price_label() : $this->tier_cell( $product->ID, $tier_key );
+					echo '<td>' . wp_kses_post( $cell ) . '</td>';
 				}
 				if ( ! $show_all ) {
-					echo '<td>' . wp_kses_post( $this->user_cell( $wc_product ) ) . '</td>';
+					$cell = $hide_price ? $this->call_for_price_label() : $this->format_price( $user_price );
+					echo '<td>' . wp_kses_post( $cell ) . '</td>';
 				}
 				echo '</tr>';
 			}
@@ -488,9 +500,14 @@ class CatalogPdf {
 	 * @param \WC_Product $product Product object.
 	 * @return string
 	 */
-	private function user_cell( $product ) {
-		$result = $this->engine->price_for_user( null, $product );
-		return $this->format_price( is_array( $result ) ? $result[0] : $result );
+	/**
+	 * The label shown in a price cell when the viewer's price is hidden/unavailable.
+	 * Filterable so a host can match its storefront "Call for Price" wording.
+	 *
+	 * @return string
+	 */
+	private function call_for_price_label() {
+		return (string) apply_filters( 'wc_pricebook_catalog_call_for_price_label', __( 'Call for Price', 'wc-pricebook' ) );
 	}
 
 	/**
@@ -516,6 +533,13 @@ class CatalogPdf {
 			return array();
 		}
 
+		// Per-viewer visibility: managers see the whole catalog (mirrors
+		// WooHooks::filter_archive_visibility, which returns early for managers);
+		// everyone else is filtered to the products their visibility rules allow, so
+		// the export never lists a product hidden from them on the storefront.
+		$filter_visibility = ! $this->context->is_manager();
+		$user_id           = $filter_visibility ? $this->context->pricing_user_id() : 0;
+
 		$groups = array();
 		foreach ( $categories as $category ) {
 			$products = get_posts(
@@ -534,6 +558,23 @@ class CatalogPdf {
 					),
 				)
 			);
+
+			if ( $filter_visibility ) {
+				$products = array_values(
+					array_filter(
+						$products,
+						function ( $product ) use ( $user_id ) {
+							return (bool) $this->context->product_visible_for_user( $product->ID, $user_id )['visible'];
+						}
+					)
+				);
+				// Drop a category with nothing visible so its name never leaks into the
+				// export as an empty section.
+				if ( empty( $products ) ) {
+					continue;
+				}
+			}
+
 			$groups[] = array(
 				'term'     => $category,
 				'products' => $products,
