@@ -221,10 +221,20 @@ class Shortcodes {
 		} elseif ( '' !== $role ) {
 			$role_keys = isset( $tiers[ $role ] ) ? array( $role ) : array();
 		} else {
-			if ( $this->engine->user_has_override( $product_id ) ) {
-				return array();
+			// Reflect the admin-bar switcher so the table shows exactly when the
+			// currently-previewed pricing has quantity breaks: a manager previewing a
+			// specific ROLE uses that role; a manager previewing a USER (or a normal
+			// customer) uses that user's own tier via pricing_user_id(). Mirrors
+			// active_tier_label() and the engine's switcher precedence.
+			$active = $this->context->is_manager() ? $this->context->switcher_role() : '';
+			if ( '' === $active ) {
+				// Pricing as an actual user: a per-user negotiated override suppresses
+				// bulk (the negotiated price wins). Not relevant to a previewed role.
+				if ( $this->engine->user_has_override( $product_id ) ) {
+					return array();
+				}
+				$active = $this->context->user_pricing_role( $this->context->pricing_user_id() );
 			}
-			$active    = $this->context->user_pricing_role( $this->context->pricing_user_id() );
 			$role_keys = ( '' !== $active && isset( $tiers[ $active ] ) ) ? array( $active ) : array();
 		}
 

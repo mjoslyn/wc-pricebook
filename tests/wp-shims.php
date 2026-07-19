@@ -314,3 +314,23 @@ if ( ! function_exists( 'current_user_can' ) ) {
 		return ! empty( Store::$user_caps[ $id ][ $capability ] );
 	}
 }
+
+if ( ! function_exists( 'shortcode_atts' ) ) {
+	/**
+	 * Merge user shortcode attributes over defaults (the WordPress semantics: only
+	 * keys present in $defaults survive).
+	 *
+	 * @param array<string,mixed> $defaults  Default attributes.
+	 * @param mixed               $atts      Supplied attributes.
+	 * @param string              $shortcode Shortcode tag (unused here).
+	 * @return array<string,mixed>
+	 */
+	function shortcode_atts( $defaults, $atts, $shortcode = '' ) {
+		$atts = (array) $atts;
+		$out  = array();
+		foreach ( (array) $defaults as $name => $default ) {
+			$out[ $name ] = array_key_exists( $name, $atts ) ? $atts[ $name ] : $default;
+		}
+		return $out;
+	}
+}
