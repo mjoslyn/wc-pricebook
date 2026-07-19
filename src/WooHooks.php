@@ -324,8 +324,14 @@ class WooHooks {
 		}
 		// Recompute for the current pricing context (so switching roles via the
 		// toolbar updates cart prices on the next load) rather than restoring the
-		// price snapshotted when the item was added.
-		$new_price                 = $this->engine->effective_price( null, $session_data['data'] );
+		// price snapshotted when the item was added. Quantity-aware so the restored
+		// per-unit price already reflects a bulk break: templates that read the item
+		// price BEFORE calculate_totals runs (notably the mini-cart, which renders
+		// each line's per-unit price before its subtotal triggers recalculation)
+		// would otherwise show the non-bulk price while the subtotal shows the bulk
+		// one. apply_bulk_cart_pricing() re-applies this on every recalculation.
+		$qty                       = isset( $values['quantity'] ) ? max( 1, (int) $values['quantity'] ) : 1;
+		$new_price                 = $this->engine->effective_price_qty( null, $session_data['data'], $qty );
 		$session_data['data']->set_price( $new_price );
 		$session_data['new_price'] = $new_price;
 		return $session_data;

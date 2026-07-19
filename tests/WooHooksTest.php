@@ -113,6 +113,30 @@ class WooHooksTest extends TestCase {
 		$this->assertSame( '70', (string) $this->hooks->get_price( $product->get_price(), $product ) );
 	}
 
+	public function test_session_restore_is_quantity_aware_for_bulk() {
+		// The mini-cart renders a line's per-unit price BEFORE calculate_totals runs, so
+		// the session-restored price must already reflect the quantity break — otherwise
+		// the per-unit line shows the non-bulk price while the subtotal shows the bulk one.
+		$this->set_meta(
+			10,
+			array(
+				'_pricebook_bulk_pricing' => array(
+					'dealer' => array( array( 'min_qty' => 10, 'max_qty' => 0, 'price' => '55' ) ),
+				),
+			)
+		);
+
+		// 13 units -> the bulk per-unit price (55), not the plain dealer price (70).
+		$product  = new FakeProduct( 10, 'simple' );
+		$restored = $this->hooks->set_cart_item_price_from_session( array( 'data' => $product ), array( 'quantity' => 13 ), 'key' );
+		$this->assertSame( '55', (string) $restored['data']->get_price() );
+
+		// Below the break -> the plain per-unit price.
+		$below    = new FakeProduct( 10, 'simple' );
+		$restored = $this->hooks->set_cart_item_price_from_session( array( 'data' => $below ), array( 'quantity' => 5 ), 'key' );
+		$this->assertSame( '70', (string) $restored['data']->get_price() );
+	}
+
 	/**
 	 * A minimal WC_Cart stand-in exposing the get_cart() shape apply_bulk_cart_pricing
 	 * iterates: a list of items each with a 'data' product and a 'quantity'.
