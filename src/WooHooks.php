@@ -478,6 +478,11 @@ class WooHooks {
 			$rows[ $key ] = $tier['label'];
 		}
 
+		// Bulk (quantity-break) schedules keyed by an identical-schedule signature, so a
+		// schedule shared by several roles is printed once under a combined label rather
+		// than repeated per role. signature => array( 'labels' => [], 'breaks' => [] ).
+		$bulk_groups = array();
+
 		echo '<table class="pricebook-matrix-table" style="font-size:12px;width:100%;">';
 		foreach ( $rows as $tier_key => $label ) {
 			$regular = $this->engine->price_as_tier( $product_id, $tier_key, false );
@@ -496,6 +501,42 @@ class WooHooks {
 				wp_kses_post( wc_price( $regular_price ) ),
 				$has_sale ? ' <span style="color:#d63638;">(' . wp_kses_post( wc_price( $sale_price ) ) . ')</span>' : ''
 			);
+
+			// Collect this tier's bulk schedule; identical schedules merge into one group.
+			if ( 'msrp' !== $tier_key ) {
+				$breaks = $this->engine->bulk_breaks( $product_id, $tier_key );
+				if ( ! empty( $breaks ) ) {
+					$sig = wp_json_encode( $breaks );
+					if ( ! isset( $bulk_groups[ $sig ] ) ) {
+						$bulk_groups[ $sig ] = array(
+							'labels' => array(),
+							'breaks' => $breaks,
+						);
+					}
+					$bulk_groups[ $sig ]['labels'][] = $label;
+				}
+			}
+		}
+
+		// Consolidated bulk-pricing section: one block per distinct schedule, its shared
+		// roles listed once. Quantity-break pricing overrides tier pricing at/above a
+		// break's minimum quantity, so without this bulk pricing is invisible in the list.
+		foreach ( $bulk_groups as $group ) {
+			printf(
+				'<tr class="pricebook-matrix-bulk-head"><td colspan="2">%s <span class="pricebook-matrix-bulk-roles">%s</span></td></tr>',
+				esc_html__( 'Bulk pricing', 'wc-pricebook' ),
+				esc_html( implode( ', ', $group['labels'] ) )
+			);
+			foreach ( $group['breaks'] as $break ) {
+				$min   = (int) $break['min_qty'];
+				$max   = (int) $break['max_qty'];
+				$range = $max > 0 ? sprintf( '%d–%d', $min, $max ) : sprintf( '%d+', $min );
+				printf(
+					'<tr class="pricebook-matrix-break"><td>%s</td><td style="text-align:right">%s</td></tr>',
+					esc_html( $range ),
+					wp_kses_post( wc_price( $break['price'] ) )
+				);
+			}
 		}
 		echo '</table>';
 	}
@@ -511,6 +552,10 @@ class WooHooks {
 			.column-price { min-width:250px !important; width:250px !important; }
 			.pricebook-matrix-table { border-collapse:collapse; width:100%; }
 			.pricebook-matrix-table td { padding:2px 4px; }
+			.pricebook-matrix-break td { padding-left:14px; opacity:0.75; font-size:11px; }
+			.pricebook-matrix-break td:first-child { color:#666; }
+			.pricebook-matrix-bulk-head td { padding-top:6px; border-top:1px solid #e0e0e0; font-weight:600; }
+			.pricebook-matrix-bulk-roles { font-weight:normal; color:#666; }
 		</style>';
 	}
 }
