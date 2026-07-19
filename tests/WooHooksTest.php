@@ -130,11 +130,16 @@ class WooHooksTest extends TestCase {
 		$product  = new FakeProduct( 10, 'simple' );
 		$restored = $this->hooks->set_cart_item_price_from_session( array( 'data' => $product ), array( 'quantity' => 13 ), 'key' );
 		$this->assertSame( '55', (string) $restored['data']->get_price() );
+		// And the get_price filter must HONOR it (the mini-cart reads the per-unit price
+		// through this filter before calculate_totals runs) instead of recomputing the
+		// per-unit dealer price (70). This is the mismatch users saw.
+		$this->assertSame( '55', (string) $this->hooks->get_price( $restored['data']->get_price(), $restored['data'] ) );
 
 		// Below the break -> the plain per-unit price.
 		$below    = new FakeProduct( 10, 'simple' );
 		$restored = $this->hooks->set_cart_item_price_from_session( array( 'data' => $below ), array( 'quantity' => 5 ), 'key' );
 		$this->assertSame( '70', (string) $restored['data']->get_price() );
+		$this->assertSame( '70', (string) $this->hooks->get_price( $restored['data']->get_price(), $restored['data'] ) );
 	}
 
 	/**

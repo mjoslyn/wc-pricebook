@@ -334,6 +334,14 @@ class WooHooks {
 		$new_price                 = $this->engine->effective_price_qty( null, $session_data['data'], $qty );
 		$session_data['data']->set_price( $new_price );
 		$session_data['new_price'] = $new_price;
+		// Mark this cart-line instance as already priced so get_price() honors the
+		// (quantity-aware) price instead of recomputing the per-unit price. Without
+		// this, a template reading the price via the get_price filter before
+		// apply_bulk_cart_pricing runs (the mini-cart) gets the non-bulk price even
+		// though set_price() above stored the bulk one. Rebuilt on recalculation.
+		if ( '' !== (string) $new_price && null !== $new_price ) {
+			$this->cart_priced[ spl_object_id( $session_data['data'] ) ] = true;
+		}
 		return $session_data;
 	}
 
