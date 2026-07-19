@@ -691,10 +691,11 @@ class Flowchart {
 				if ( $as_user ) :
 					$base      = (float) get_post_meta( $product_id, $this->config->base_meta()['regular'], true );
 					$u_reg     = $this->engine->price_for_user( $base, $product, $user_id, false );
-					// What the customer actually pays: the effective (sale-applied) price,
-					// not the regular tier price. price_for_user( ..., true ) alone is fed the
-					// regular base and misses a storewide/bundle sale; effective_price resolves it.
-					$paid      = $this->engine->effective_price( $base, $product, $user_id );
+					// What the customer actually pays: the effective (sale-applied) price.
+					// Pass an EMPTY base so the engine derives the active price from the
+					// product (including a storewide/bundle sale). Passing the regular base
+					// here suppresses the sale — the engine uses the value it's handed.
+					$paid      = $this->engine->effective_price( '', $product, $user_id );
 					$priced_as = $this->context->resolve_pricing_user_id( (int) $user_id );
 					$parent    = ( $priced_as !== (int) $user_id ) ? get_userdata( $priced_as ) : null;
 					$role_user = $parent ? $parent : $as_user;
