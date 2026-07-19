@@ -37,8 +37,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class CatalogPdf {
 
-	/** admin-post.php action for the download endpoint. */
-	const ACTION = 'wc_pricebook_catalog_pdf';
+	/** Default front-end URL path for the download endpoint (host-overridable). */
+	const ENDPOINT = 'catalog-download';
+
+	/** Query var the front-end download endpoint routes through. */
+	const QUERY_VAR = 'wc_pricebook_catalog';
+
+	/** Option key recording the rewrite state, so rules self-heal after a change. */
+	const REWRITE_OPTION = 'wc_pricebook_catalog_rewrite';
 
 	/** Default shortcode tag (a host typically overrides this via filter). */
 	const DEFAULT_SHORTCODE = 'wc_pricebook_catalog';
@@ -84,8 +90,77 @@ class CatalogPdf {
 			add_shortcode( $csv_url_tag, array( $this, 'csv_url_shortcode' ) );
 		}
 
-		add_action( 'admin_post_' . self::ACTION, array( $this, 'handle_download' ) );
-		add_action( 'admin_post_nopriv_' . self::ACTION, array( $this, 'handle_download' ) );
+		// Front-end download endpoint with a clean URL (e.g. /catalog-download/pdf/).
+		// The old admin-post.php route put the request under wp-admin, where
+		// WooCommerce's prevent_admin_access() redirects any non-admin visitor to the
+		// My Account page on admin_init — before any handler runs. A front-end rewrite
+		// avoids wp-admin entirely so logged-out, dealer and operator users reach it.
+		add_filter( 'query_vars', array( $this, 'register_query_var' ) );
+		add_action( 'init', array( $this, 'add_rewrite' ) );
+		add_action( 'template_redirect', array( $this, 'maybe_stream' ) );
+	}
+
+	/**
+	 * The URL path segment the download endpoint lives under (host-overridable).
+	 *
+	 * @return string Trimmed path with no leading/trailing slashes.
+	 */
+	private function endpoint() {
+		return trim( (string) apply_filters( 'wc_pricebook_catalog_endpoint', self::ENDPOINT ), '/' );
+	}
+
+	/**
+	 * Register the endpoint's query var so WordPress preserves it through the request.
+	 *
+	 * @param array<int,string> $vars Public query vars.
+	 * @return array<int,string>
+	 */
+	public function register_query_var( $vars ) {
+		$vars[] = self::QUERY_VAR;
+		return $vars;
+	}
+
+	/**
+	 * Add the rewrite rule mapping /{endpoint}/{pdf|csv}/ to the endpoint query var,
+	 * flushing rules once (self-healing) whenever the rule or endpoint changes.
+	 */
+	public function add_rewrite() {
+		$endpoint = $this->endpoint();
+		if ( '' === $endpoint ) {
+			return;
+		}
+		add_rewrite_rule(
+			'^' . preg_quote( $endpoint, '#' ) . '/(pdf|csv)/?$',
+			'index.php?' . self::QUERY_VAR . '=$matches[1]',
+			'top'
+		);
+
+		$token = 'v1:' . $endpoint;
+		if ( get_option( self::REWRITE_OPTION ) !== $token ) {
+			flush_rewrite_rules( false );
+			update_option( self::REWRITE_OPTION, $token );
+		}
+	}
+
+	/**
+	 * template_redirect handler: stream the catalog when the endpoint is requested.
+	 *
+	 * The catalog is public and read-only (its content is derived from the current
+	 * viewer's own pricing), so no nonce is required — which also keeps the button
+	 * URLs cacheable.
+	 */
+	public function maybe_stream() {
+		$format = (string) get_query_var( self::QUERY_VAR );
+		if ( '' === $format && isset( $_GET[ self::QUERY_VAR ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$format = sanitize_key( wp_unslash( $_GET[ self::QUERY_VAR ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		}
+		if ( 'pdf' !== $format && 'csv' !== $format ) {
+			return;
+		}
+		if ( 'csv' === $format ) {
+			$this->stream_csv();
+		}
+		$this->stream_pdf();
 	}
 
 	/**
@@ -107,20 +182,18 @@ class CatalogPdf {
 	}
 
 	/**
-	 * Nonce-protected download URL for the given format.
+	 * Front-end download URL for the given format. Uses the clean rewrite path when
+	 * pretty permalinks are on (e.g. /catalog-download/pdf/), else a query-var URL.
 	 *
 	 * @param string $format 'pdf' or 'csv'.
 	 * @return string Raw URL (plain ampersands); callers escape for their context.
 	 */
 	private function download_url( $format ) {
-		return add_query_arg(
-			array(
-				'action'   => self::ACTION,
-				'format'   => $format,
-				'_wpnonce' => wp_create_nonce( self::ACTION ),
-			),
-			admin_url( 'admin-post.php' )
-		);
+		$endpoint = $this->endpoint();
+		if ( '' !== $endpoint && '' !== (string) get_option( 'permalink_structure' ) ) {
+			return home_url( user_trailingslashit( $endpoint . '/' . $format ) );
+		}
+		return add_query_arg( array( self::QUERY_VAR => $format ), home_url( '/' ) );
 	}
 
 	/**
@@ -168,19 +241,6 @@ class CatalogPdf {
 			esc_attr( $format ),
 			esc_html( $label )
 		);
-	}
-
-	/**
-	 * admin-post handler: verify nonce, then stream the requested format.
-	 */
-	public function handle_download() {
-		check_admin_referer( self::ACTION );
-
-		$format = isset( $_GET['format'] ) ? sanitize_key( wp_unslash( $_GET['format'] ) ) : 'pdf';
-		if ( 'csv' === $format ) {
-			$this->stream_csv();
-		}
-		$this->stream_pdf();
 	}
 
 	/**
