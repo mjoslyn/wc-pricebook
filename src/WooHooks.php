@@ -330,8 +330,10 @@ class WooHooks {
 		// each line's per-unit price before its subtotal triggers recalculation)
 		// would otherwise show the non-bulk price while the subtotal shows the bulk
 		// one. apply_bulk_cart_pricing() re-applies this on every recalculation.
+		// Seeded with the stored _price meta rather than null so an externally-set
+		// active price survives the round trip — see PriceEngine::stored_active_price().
 		$qty                       = isset( $values['quantity'] ) ? max( 1, (int) $values['quantity'] ) : 1;
-		$new_price                 = $this->engine->effective_price_qty( null, $session_data['data'], $qty );
+		$new_price                 = $this->engine->effective_price_qty( $this->engine->stored_active_price( $session_data['data'] ), $session_data['data'], $qty );
 		$session_data['data']->set_price( $new_price );
 		$session_data['new_price'] = $new_price;
 		// Mark this cart-line instance as already priced so get_price() honors the
@@ -374,7 +376,7 @@ class WooHooks {
 			$qty = isset( $cart_item['quantity'] ) ? (int) $cart_item['quantity'] : 1;
 			// A pricing error on one line must not break the whole cart/checkout.
 			try {
-				$new_price = $this->engine->effective_price_qty( null, $cart_item['data'], $qty );
+				$new_price = $this->engine->effective_price_qty( $this->engine->stored_active_price( $cart_item['data'] ), $cart_item['data'], $qty );
 			} catch ( \Throwable $e ) {
 				continue;
 			}

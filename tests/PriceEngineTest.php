@@ -946,4 +946,57 @@ class PriceEngineTest extends TestCase {
 		$product = new FakeProduct( 10 );
 		$this->assertSame( '80', (string) $this->engine->price_for_user( null, $product, null, true )[0] );
 	}
+	public function test_stored_active_price_reads_price_meta() {
+		$this->set_meta( 10, array( '_regular_price' => '3795', '_price' => '3195' ) );
+		$this->assertSame( '3195', (string) $this->engine->stored_active_price( new FakeProduct( 10 ) ) );
+	}
+
+	public function test_stored_active_price_is_null_when_unset() {
+		$this->set_meta( 10, array( '_regular_price' => '3795' ) );
+		$this->assertNull( $this->engine->stored_active_price( new FakeProduct( 10 ) ) );
+		$this->assertNull( $this->engine->stored_active_price( null ) );
+	}
+
+	public function test_active_price_survives_when_sale_meta_is_empty() {
+		// Regression: WooCommerce Product Bundles writes its own base sale price to
+		// _price and leaves _sale_price empty. The cart paths resolve a price with no
+		// incoming value, so seeding them with null made the sale candidate fall back
+		// to the empty _sale_price — the product page showed 3195 while the cart
+		// charged the 3795 regular price. Seeded with the stored _price instead, the
+		// active price is preserved.
+		$this->set_meta( 10, array( '_regular_price' => '3795', '_price' => '3195', '_sale_price' => '' ) );
+		$product = new FakeProduct( 10 );
+
+		$this->assertSame( '3795', (string) $this->engine->effective_price( null, $product ) );
+		$this->assertSame(
+			'3195',
+			(string) $this->engine->effective_price( $this->engine->stored_active_price( $product ), $product )
+		);
+	}
+
+	public function test_active_price_above_regular_does_not_win() {
+		// The seeded price is only ever a sale *candidate*: it applies when it beats
+		// the regular price and is ignored otherwise, so a stale or higher _price can
+		// never raise what a customer is charged.
+		$this->set_meta( 10, array( '_regular_price' => '100', '_price' => '150', '_sale_price' => '' ) );
+		$product = new FakeProduct( 10 );
+
+		$this->assertSame(
+			'100',
+			(string) $this->engine->effective_price( $this->engine->stored_active_price( $product ), $product )
+		);
+	}
+
+	public function test_seeded_active_price_does_not_disturb_tier_pricing() {
+		// A dealer's tier price must still win over the seeded MSRP active price.
+		$this->set_meta( 10, array( '_regular_price' => '100', '_price' => '100', 'dealer_price' => '70' ) );
+		Store::add_user( 5, array( 'dealer' ), array( 'dealer' ) );
+		Store::$current_user = 5;
+		$product = new FakeProduct( 10 );
+
+		$this->assertSame(
+			'70',
+			(string) $this->engine->effective_price( $this->engine->stored_active_price( $product ), $product )
+		);
+	}
 }

@@ -55,6 +55,35 @@ class PriceEngine {
 	}
 
 	/**
+	 * A product's stored active price (`_price`), read straight from meta.
+	 *
+	 * Callers that resolve a price outside the WooCommerce price filters — the cart
+	 * paths — need an incoming price to hand {@see self::effective_price}, but cannot
+	 * call get_price() without re-entering the very filters they run inside. Passing
+	 * null instead loses information the engine depends on:
+	 *
+	 *   - the sale candidate falls back to the base sale meta, so a product whose
+	 *     active price lives only in `_price` (WooCommerce Product Bundles writes its
+	 *     own base sale price there and leaves `_sale_price` empty) resolves to its
+	 *     regular price, and the cart charges more than the product page shows;
+	 *   - the skip_matrix rule returns the incoming price untouched, so a skipped
+	 *     product resolves to null rather than to its actual price.
+	 *
+	 * Reading the meta directly gives those callers the same starting value the
+	 * product filters receive, with no filter re-entry.
+	 *
+	 * @param mixed $product Product object.
+	 * @return mixed Stored active price, or null when unavailable.
+	 */
+	public function stored_active_price( $product ) {
+		if ( ! is_object( $product ) || ! method_exists( $product, 'get_id' ) ) {
+			return null;
+		}
+		$price = get_post_meta( $product->get_id(), '_price', true );
+		return ( '' === (string) $price ) ? null : $price;
+	}
+
+	/**
 	 * Price for a product as a specific named tier ("price as role").
 	 *
 	 * @param int                   $product_id Product ID.
