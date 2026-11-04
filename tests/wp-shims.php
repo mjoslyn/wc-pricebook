@@ -32,6 +32,19 @@ if ( ! class_exists( 'WP_Error' ) ) {
 	class WP_Error {}
 }
 
+if ( ! function_exists( '__' ) ) {
+	/**
+	 * Translation pass-through.
+	 *
+	 * @param string $text   Text.
+	 * @param string $domain Text domain (ignored).
+	 * @return string
+	 */
+	function __( $text, $domain = 'default' ) {
+		return $text;
+	}
+}
+
 if ( ! function_exists( 'add_filter' ) ) {
 	/**
 	 * Register a filter callback in the in-memory store (priority/arg-count ignored).

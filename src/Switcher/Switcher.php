@@ -91,16 +91,23 @@ class Switcher {
 	}
 
 	/**
-	 * The manager's currently selected role (defaults to MSRP).
+	 * The manager's currently selected role.
+	 *
+	 * With no selection saved, pricing falls through to the manager's own tier
+	 * membership ({@see PriceEngine::price_for_user}), so report that tier rather
+	 * than MSRP — otherwise a manager who also holds e.g. the dealer role sees
+	 * "MSRP Pricing" in the toolbar while being charged the dealer price.
 	 *
 	 * @return string
 	 */
 	public function current_role() {
-		$role = $this->context->switcher_role();
-		if ( '' === $role || ! isset( $this->available_roles()[ $role ] ) ) {
-			return 'msrp';
+		$roles = $this->available_roles();
+		$role  = $this->context->switcher_role();
+		if ( '' !== $role && isset( $roles[ $role ] ) ) {
+			return $role;
 		}
-		return $role;
+		$own = $this->context->user_pricing_role( get_current_user_id() );
+		return ( '' !== $own && isset( $roles[ $own ] ) ) ? $own : 'msrp';
 	}
 
 	/**
