@@ -195,8 +195,11 @@ class Shortcodes {
 	private function resolve_product_id( $product ) {
 		$product_id = (int) $product;
 		if ( $product_id <= 0 ) {
+			// WooCommerce 11.0 makes get_queried_object() on the shop page return
+			// that page's WP_Post, where earlier versions returned the products
+			// WP_Post_Type — only a queried product is a valid fallback.
 			$post       = get_queried_object();
-			$product_id = ( $post && isset( $post->ID ) ) ? (int) $post->ID : 0;
+			$product_id = ( $post instanceof \WP_Post && 'product' === $post->post_type ) ? (int) $post->ID : 0;
 		}
 		return $product_id;
 	}
@@ -260,8 +263,10 @@ class Shortcodes {
 		if ( ! $this->context->current_user_is_manager() ) {
 			return '';
 		}
+		// WooCommerce 11.0 makes get_queried_object() on the shop page return that
+		// page's WP_Post, where earlier versions returned the products WP_Post_Type.
 		$post = get_queried_object();
-		if ( ! $post || ! isset( $post->ID ) ) {
+		if ( ! $post instanceof \WP_Post || 'product' !== $post->post_type ) {
 			return '';
 		}
 		$product_id = $post->ID;
