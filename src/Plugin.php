@@ -188,12 +188,9 @@ class Plugin {
 	 */
 	public static function on_deactivation() {
 		wp_clear_scheduled_hook( ExportModule::CRON_HOOK );
-		// Drop any in-progress background export (queued batches + its state).
-		if ( function_exists( 'as_unschedule_all_actions' ) ) {
-			as_unschedule_all_actions( ExportModule::BATCH_HOOK );
-		}
-		delete_option( ExportModule::STATE_OPTION );
-		delete_option( ExportModule::PRODUCTS_OPTION );
+		// Drop any in-progress background export: queued batches, its state, and any
+		// export file left on disk.
+		ExportModule::purge();
 		flush_rewrite_rules();
 	}
 }

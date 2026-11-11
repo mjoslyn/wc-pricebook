@@ -236,6 +236,11 @@ class Shortcodes {
 				if ( $this->engine->user_has_override( $product_id ) ) {
 					return array();
 				}
+				// The price is hidden ("Call for Price") for this viewer: the quantity
+				// breaks are prices too, so the table must not show them.
+				if ( $this->engine->price_hidden( $product_id ) ) {
+					return array();
+				}
 				$active = $this->context->user_pricing_role( $this->context->pricing_user_id() );
 			}
 			$role_keys = ( '' !== $active && isset( $tiers[ $active ] ) ) ? array( $active ) : array();

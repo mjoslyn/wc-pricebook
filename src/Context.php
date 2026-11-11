@@ -610,7 +610,7 @@ class Context {
 
 	/**
 	 * Whether a product is visible in the catalog to a user, per their effective
-	 * visibility category lists. Mirrors WooHooks::filter_archive_visibility:
+	 * visibility category lists. Mirrors WooHooks::filter_product_visibility:
 	 * managers see everything; an exclude list hides products in those categories;
 	 * an include list limits the catalog to products in those categories.
 	 *

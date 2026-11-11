@@ -71,11 +71,13 @@ class PricelistExporter {
 		// WC_Product for every user.
 		$price = $this->engine->effective_price( '', new ProductProxy( $product['id'] ), (int) $user['id'] );
 
+		// Text cells are neutralized: display names are customer-editable, and a value
+		// starting with "=" would otherwise run as a formula when staff open the file.
 		return array(
-			(string) $user['display_name'],
-			implode( ', ', isset( $user['roles'] ) && is_array( $user['roles'] ) ? $user['roles'] : array() ),
-			(string) $product['name'],
-			(string) $product['sku'],
+			Csv::cell( $user['display_name'] ),
+			Csv::cell( implode( ', ', isset( $user['roles'] ) && is_array( $user['roles'] ) ? $user['roles'] : array() ) ),
+			Csv::cell( $product['name'] ),
+			Csv::cell( $product['sku'] ),
 			$this->format_price( $price ),
 		);
 	}
@@ -94,7 +96,7 @@ class PricelistExporter {
 			throw new \RuntimeException( 'Unable to open export file for writing: ' . $file );
 		}
 
-		fputcsv( $handle, self::COLUMNS, ',', '"', '\\' );
+		Csv::put( $handle, self::COLUMNS );
 
 		$roles    = isset( $args['roles'] ) && is_array( $args['roles'] ) ? $args['roles'] : $this->config->export()['roles'];
 		$products = $this->gather_products();
@@ -102,7 +104,7 @@ class PricelistExporter {
 
 		foreach ( $this->gather_users( $roles ) as $user ) {
 			foreach ( $products as $product ) {
-				fputcsv( $handle, $this->build_row( $user, $product ), ',', '"', '\\' );
+				Csv::put( $handle, $this->build_row( $user, $product ) );
 				$count++;
 			}
 		}
@@ -216,7 +218,7 @@ class PricelistExporter {
 		if ( false === $handle ) {
 			throw new \RuntimeException( 'Unable to open export file for writing: ' . $file );
 		}
-		fputcsv( $handle, self::COLUMNS, ',', '"', '\\' );
+		Csv::put( $handle, self::COLUMNS );
 		fclose( $handle );
 	}
 
@@ -238,7 +240,7 @@ class PricelistExporter {
 		$count = 0;
 		foreach ( $users as $user ) {
 			foreach ( $products as $product ) {
-				fputcsv( $handle, $this->build_row( $user, $product ), ',', '"', '\\' );
+				Csv::put( $handle, $this->build_row( $user, $product ) );
 				$count++;
 			}
 		}
@@ -351,7 +353,8 @@ class PricelistExporter {
 	 */
 	private function temp_file() {
 		$dir  = function_exists( 'get_temp_dir' ) ? get_temp_dir() : sys_get_temp_dir() . '/';
-		$name = 'wc-pricebook-pricelist-' . gmdate( 'Ymd-His' ) . '.csv';
+		// Random suffix: the name must not be guessable from the time of the run.
+		$name = 'wc-pricebook-pricelist-' . gmdate( 'Ymd-His' ) . '-' . bin2hex( random_bytes( 16 ) ) . '.csv';
 		$file = rtrim( $dir, '/\\' ) . '/' . $name;
 
 		if ( false === @touch( $file ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged

@@ -110,4 +110,44 @@ class PricelistExporterTest extends TestCase {
 
 		$this->assertSame( '', $row[4] );
 	}
+
+	public function test_row_neutralizes_spreadsheet_formulas() {
+		// display_name is customer-editable: a leading "=" must not reach the CSV as a
+		// live formula. Plain numbers (a negative SKU-like value) are left alone.
+		Store::add_user( 9, array( 'customer' ), array() );
+		$this->set_meta( 14, array( '_regular_price' => '10' ) );
+
+		$row = $this->exporter()->build_row(
+			array( 'id' => 9, 'display_name' => '=HYPERLINK("http://evil.test","x")', 'roles' => array( 'customer' ) ),
+			array( 'id' => 14, 'name' => '+cmd', 'sku' => '-42' )
+		);
+
+		$this->assertSame( '\'=HYPERLINK("http://evil.test","x")', $row[0] );
+		$this->assertSame( "'+cmd", $row[2] );
+		$this->assertSame( '-42', $row[3] );
+		$this->assertSame( '10.00', $row[4] );
+	}
+
+	public function test_backslash_quote_cannot_break_out_of_its_cell() {
+		// With PHP's default "\\" escape character a value containing \" is written
+		// without doubling the quote, so a spreadsheet ends the cell early and reads the
+		// rest as new cells. The exporter disables the escape character.
+		Store::add_user( 9, array( 'customer' ), array() );
+		$this->set_meta( 14, array( '_regular_price' => '10' ) );
+
+		$name     = 'x\\",=1+1,"y';
+		$exporter = $this->exporter();
+		$file     = tempnam( sys_get_temp_dir(), 'pbtest' );
+		$exporter->init_csv( $file );
+		$exporter->append_rows(
+			$file,
+			array( array( 'id' => 9, 'display_name' => $name, 'roles' => array( 'customer' ) ) ),
+			array( array( 'id' => 14, 'name' => 'Widget', 'sku' => 'W-1' ) )
+		);
+		$lines = array_values( array_filter( explode( "\n", (string) file_get_contents( $file ) ), 'strlen' ) );
+		@unlink( $file );
+
+		// Parsed the way a spreadsheet does (no escape character): still five cells.
+		$this->assertSame( array( $name, 'customer', 'Widget', 'W-1', '10.00' ), str_getcsv( $lines[1], ',', '"', '' ) );
+	}
 }

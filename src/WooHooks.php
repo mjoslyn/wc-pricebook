@@ -87,8 +87,21 @@ class WooHooks {
 		// (quantity-break) pricing follows quantity changes.
 		add_action( 'woocommerce_before_calculate_totals', array( $this, 'apply_bulk_cart_pricing' ), 100 );
 
-		// Frontend product-archive visibility based on a user's include/exclude lists.
-		add_action( 'pre_get_posts', array( $this, 'filter_archive_visibility' ) );
+		// A hidden price ("Call for Price") also covers variations. Tier pricing itself
+		// is not applied to variations; these only blank a price the parent hides.
+		add_filter( 'woocommerce_product_variation_get_price', array( $this, 'hide_variation_price' ), 99, 2 );
+		add_filter( 'woocommerce_product_variation_get_regular_price', array( $this, 'hide_variation_price' ), 999, 2 );
+		add_filter( 'woocommerce_product_variation_get_sale_price', array( $this, 'hide_variation_price' ), 990, 2 );
+		add_filter( 'woocommerce_get_price_html', array( $this, 'hidden_price_html' ), 100, 2 );
+
+		// Catalog visibility ("Hide Product" + a user's include/exclude lists), enforced
+		// on every front-end product query, the single product page, and purchase.
+		add_action( 'pre_get_posts', array( $this, 'filter_product_visibility' ) );
+		add_action( 'template_redirect', array( $this, 'block_hidden_product' ), 1 );
+		add_filter( 'woocommerce_product_is_visible', array( $this, 'product_is_visible' ), 99, 2 );
+		add_filter( 'woocommerce_variation_is_visible', array( $this, 'variation_is_visible' ), 99, 3 );
+		add_filter( 'woocommerce_is_purchasable', array( $this, 'is_purchasable' ), 99, 2 );
+		add_filter( 'woocommerce_variation_is_purchasable', array( $this, 'is_purchasable' ), 99, 2 );
 
 		if ( is_admin() && $this->config->module_enabled( 'admin_price_matrix' ) ) {
 			add_filter( 'manage_product_posts_custom_column', array( $this, 'render_admin_price_column' ), 99, 2 );
@@ -140,6 +153,12 @@ class WooHooks {
 	public function get_regular_price( $price, $product ) {
 		if ( $this->is_externally_priced_bundle( $product ) ) {
 			return $price;
+		}
+		// A deliberately hidden price ("Call for Price") has no regular price either.
+		// Falling through would return the MSRP below, exposing the hidden price to
+		// anything that reads the regular price (themes, the Store API).
+		if ( $this->engine->price_hidden( $product->get_id() ) ) {
+			return '';
 		}
 		$msrp      = $this->msrp( $product );
 		$effective = $this->engine->effective_price( $price, $product );
@@ -388,75 +407,260 @@ class WooHooks {
 	}
 
 	/**
-	 * Constrain product archives to a user's include/exclude category lists.
+	 * The product ID that pricing/visibility rules are evaluated against: the parent
+	 * for a variation (categories, rules and overrides live on the parent), otherwise
+	 * the product itself.
 	 *
-	 * Applies on the Shop (product post-type archive) and on product taxonomy
-	 * archives — product category, tag, and attribute pages.
+	 * @param mixed $product Product object.
+	 * @return int
+	 */
+	private function gate_product_id( $product ) {
+		if ( ! is_object( $product ) || ! method_exists( $product, 'get_id' ) ) {
+			return 0;
+		}
+		if ( method_exists( $product, 'get_type' ) && 'variation' === $product->get_type() && method_exists( $product, 'get_parent_id' ) ) {
+			$parent = (int) $product->get_parent_id();
+			if ( $parent > 0 ) {
+				return $parent;
+			}
+		}
+		return (int) $product->get_id();
+	}
+
+	/**
+	 * Blank a variation's price when its parent product's price is hidden for the
+	 * current user ("Call for Price"). Otherwise the price is left untouched.
+	 *
+	 * @param mixed       $price     Incoming price.
+	 * @param \WC_Product $variation Variation.
+	 * @return mixed
+	 */
+	public function hide_variation_price( $price, $variation ) {
+		$product_id = $this->gate_product_id( $variation );
+		return ( $product_id && $this->engine->price_hidden( $product_id ) ) ? '' : $price;
+	}
+
+	/**
+	 * Replace the price html of a variable product (or a variation) whose price is
+	 * hidden for the current user with WooCommerce's empty-price markup. A variable
+	 * product builds its price range from cached variation prices, which bypass the
+	 * per-product price filters, so the range must be suppressed here.
+	 *
+	 * @param string      $html    Price html.
+	 * @param \WC_Product $product Product.
+	 * @return string
+	 */
+	public function hidden_price_html( $html, $product ) {
+		if ( ! is_object( $product ) || ! method_exists( $product, 'get_type' ) ) {
+			return $html;
+		}
+		if ( ! in_array( $product->get_type(), array( 'variable', 'variation' ), true ) ) {
+			return $html;
+		}
+		$product_id = $this->gate_product_id( $product );
+		if ( ! $product_id || ! $this->engine->price_hidden( $product_id ) ) {
+			return $html;
+		}
+		return (string) apply_filters( 'woocommerce_empty_price_html', '', $product );
+	}
+
+	/**
+	 * Per-request cache of hidden product IDs, keyed by pricing user ID.
+	 *
+	 * @var array<int,array<int,int>>
+	 */
+	private $hidden_ids = array();
+
+	/**
+	 * True while the hidden-ID lookup runs its own product queries (re-entrancy guard
+	 * for the pre_get_posts handler).
+	 *
+	 * @var bool
+	 */
+	private $resolving_hidden = false;
+
+	/**
+	 * Whether catalog visibility is enforced for this request. Never in wp-admin
+	 * screens, cron, WP-CLI or the Action Scheduler runner (so exports, feeds and other
+	 * background jobs see the full catalog), and never for managers.
+	 *
+	 * @return bool
+	 */
+	private function enforces_visibility() {
+		if ( $this->resolving_hidden ) {
+			return false;
+		}
+		$ajax = function_exists( 'wp_doing_ajax' ) && wp_doing_ajax();
+		if ( function_exists( 'is_admin' ) && is_admin() && ! $ajax ) {
+			return false;
+		}
+		if ( ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			return false;
+		}
+		if ( function_exists( 'did_action' ) && did_action( 'action_scheduler_before_process_queue' ) ) {
+			return false;
+		}
+		return ! $this->context->is_manager();
+	}
+
+	/**
+	 * IDs of the published products hidden from a user's catalog: products in an
+	 * excluded category, or outside the include list, minus any product that forces
+	 * itself visible to the user. Agrees with {@see Context::product_visible_for_user}.
+	 *
+	 * @param int $user_id Resolved pricing user ID.
+	 * @return array<int,int>
+	 */
+	private function hidden_product_ids( $user_id ) {
+		$user_id = (int) $user_id;
+		if ( isset( $this->hidden_ids[ $user_id ] ) ) {
+			return $this->hidden_ids[ $user_id ];
+		}
+
+		$cats       = $this->context->effective_visibility_categories( $user_id );
+		$candidates = array();
+
+		$this->resolving_hidden = true;
+		foreach ( array( 'exclude' => 'IN', 'include' => 'NOT IN' ) as $list => $operator ) {
+			if ( empty( $cats[ $list ] ) ) {
+				continue;
+			}
+			$candidates = array_merge(
+				$candidates,
+				get_posts(
+					array(
+						'post_type'   => 'product',
+						'post_status' => 'publish',
+						'numberposts' => -1,
+						'fields'      => 'ids',
+						// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+						'tax_query'   => array(
+							array(
+								'taxonomy' => 'product_cat',
+								'field'    => 'term_id',
+								'terms'    => array_map( 'intval', $cats[ $list ] ),
+								'operator' => $operator,
+							),
+						),
+					)
+				)
+			);
+		}
+		$this->resolving_hidden = false;
+
+		$hide = array();
+		foreach ( array_unique( array_map( 'intval', $candidates ) ) as $pid ) {
+			if ( ! $this->context->user_force_visible( $pid, $user_id ) ) {
+				$hide[] = $pid;
+			}
+		}
+
+		$this->hidden_ids[ $user_id ] = $hide;
+		return $hide;
+	}
+
+	/**
+	 * Whether a product is hidden from the current viewer's catalog.
+	 *
+	 * @param int $product_id Product ID (parent ID for a variation).
+	 * @return bool
+	 */
+	private function hidden_from_viewer( $product_id ) {
+		if ( $product_id <= 0 || ! $this->enforces_visibility() ) {
+			return false;
+		}
+		$result = $this->context->product_visible_for_user( $product_id, $this->context->pricing_user_id() );
+		return empty( $result['visible'] );
+	}
+
+	/**
+	 * Remove hidden products from every front-end query that can return products:
+	 * the shop and taxonomy archives, search, shortcodes/blocks, related products and
+	 * REST/Store API listings. Previously only the main archive query was filtered, so
+	 * a hidden product was still listed everywhere else.
 	 *
 	 * @param \WP_Query $query Query.
 	 * @return void
 	 */
-	public function filter_archive_visibility( $query ) {
-		if ( is_admin() || ! $query->is_main_query() ) {
+	public function filter_product_visibility( $query ) {
+		if ( ! $this->enforces_visibility() ) {
 			return;
 		}
-		$is_product_archive = ( function_exists( 'is_post_type_archive' ) && is_post_type_archive( 'product' ) )
-			|| ( function_exists( 'is_product_taxonomy' ) && is_product_taxonomy() );
-		if ( ! $is_product_archive ) {
-			return;
-		}
-		if ( $this->context->is_manager() ) {
+		// Skip queries that explicitly target other post types (menus, pages, orders…).
+		$post_type = $query->get( 'post_type' );
+		if ( ! empty( $post_type ) && 'any' !== $post_type && ! in_array( 'product', (array) $post_type, true ) ) {
 			return;
 		}
 
-		$user_id   = $this->context->pricing_user_id();
-		$cats      = $this->context->effective_visibility_categories( $user_id );
-		$tax_query = (array) $query->get( 'tax_query' );
-
-		if ( ! empty( $cats['include'] ) ) {
-			$tax_query[] = array(
-				'taxonomy' => 'product_cat',
-				'field'    => 'term_id',
-				'terms'    => array_map( 'intval', $cats['include'] ),
-				'operator' => 'IN',
-			);
-		}
-		if ( ! empty( $cats['exclude'] ) ) {
-			// Hide products in the excluded categories — except any product that forces
-			// itself visible to a role this user holds. Those are subtracted from the
-			// hidden set (post__not_in) so the category exclusion doesn't bury them.
-			$excluded_ids = get_posts(
-				array(
-					'post_type'   => 'product',
-					'post_status' => 'publish',
-					'numberposts' => -1,
-					'fields'      => 'ids',
-					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					'tax_query'   => array(
-						array(
-							'taxonomy' => 'product_cat',
-							'field'    => 'term_id',
-							'terms'    => array_map( 'intval', $cats['exclude'] ),
-							'operator' => 'IN',
-						),
-					),
-				)
-			);
-			$hide = array();
-			foreach ( $excluded_ids as $pid ) {
-				if ( ! $this->context->user_force_visible( $pid, $user_id ) ) {
-					$hide[] = (int) $pid;
-				}
-			}
-			if ( ! empty( $hide ) ) {
-				$existing = array_map( 'intval', (array) $query->get( 'post__not_in' ) );
-				$query->set( 'post__not_in', array_values( array_unique( array_merge( $existing, $hide ) ) ) );
-			}
+		$hide = $this->hidden_product_ids( $this->context->pricing_user_id() );
+		if ( empty( $hide ) ) {
+			return;
 		}
 
-		if ( count( $tax_query ) ) {
-			$query->set( 'tax_query', $tax_query );
+		// WP_Query ignores post__not_in when post__in is set, so narrow post__in itself.
+		$only = array_filter( array_map( 'intval', (array) $query->get( 'post__in' ) ) );
+		if ( ! empty( $only ) ) {
+			$left = array_values( array_diff( $only, $hide ) );
+			$query->set( 'post__in', empty( $left ) ? array( 0 ) : $left );
+			return;
 		}
+
+		$existing = array_filter( array_map( 'intval', (array) $query->get( 'post__not_in' ) ) );
+		$query->set( 'post__not_in', array_values( array_unique( array_merge( $existing, $hide ) ) ) );
+	}
+
+	/**
+	 * Serve a 404 for the single page of a product hidden from the viewer, so it
+	 * cannot be opened by direct URL.
+	 *
+	 * @return void
+	 */
+	public function block_hidden_product() {
+		if ( ! function_exists( 'is_product' ) || ! is_product() ) {
+			return;
+		}
+		if ( ! $this->hidden_from_viewer( (int) get_queried_object_id() ) ) {
+			return;
+		}
+		global $wp_query;
+		$wp_query->set_404();
+		status_header( 404 );
+		nocache_headers();
+	}
+
+	/**
+	 * woocommerce_product_is_visible: hidden products are not visible in loops.
+	 *
+	 * @param bool $visible    Current visibility.
+	 * @param int  $product_id Product ID.
+	 * @return bool
+	 */
+	public function product_is_visible( $visible, $product_id ) {
+		return $visible && ! $this->hidden_from_viewer( (int) $product_id );
+	}
+
+	/**
+	 * woocommerce_variation_is_visible: follows the parent product's visibility.
+	 *
+	 * @param bool $visible      Current visibility.
+	 * @param int  $variation_id Variation ID.
+	 * @param int  $parent_id    Parent product ID.
+	 * @return bool
+	 */
+	public function variation_is_visible( $visible, $variation_id, $parent_id = 0 ) {
+		return $visible && ! $this->hidden_from_viewer( (int) $parent_id );
+	}
+
+	/**
+	 * A product hidden from the viewer cannot be purchased (blocks add-to-cart by URL
+	 * or API, and drops it from an existing cart).
+	 *
+	 * @param bool        $purchasable Current purchasability.
+	 * @param \WC_Product $product     Product or variation.
+	 * @return bool
+	 */
+	public function is_purchasable( $purchasable, $product ) {
+		return $purchasable && ! $this->hidden_from_viewer( $this->gate_product_id( $product ) );
 	}
 
 	/**

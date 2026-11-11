@@ -257,34 +257,97 @@ class ExportModule {
 	}
 
 	/**
-	 * Remove the run state + captured product list, and drop any queued batches.
+	 * Remove the run state + captured product list, drop any queued batches, and delete
+	 * every export file left on disk — including one orphaned by a run that died, which
+	 * would otherwise stay in the uploads directory indefinitely.
 	 *
 	 * @return void
 	 */
 	private function clear_run() {
+		self::purge();
+	}
+
+	/**
+	 * Static form of {@see self::clear_run} so plugin deactivation can call it.
+	 *
+	 * @return void
+	 */
+	public static function purge() {
+		$state = get_option( self::STATE_OPTION, false );
+		if ( is_array( $state ) && ! empty( $state['file'] ) && is_string( $state['file'] ) && file_exists( $state['file'] ) ) {
+			@unlink( $state['file'] ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		}
 		delete_option( self::STATE_OPTION );
 		delete_option( self::PRODUCTS_OPTION );
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			as_unschedule_all_actions( self::BATCH_HOOK );
 		}
+
+		// Sweep stragglers: files whose state was already lost, and files written by
+		// earlier versions under a predictable name.
+		$dir = self::export_dir( false );
+		if ( '' !== $dir ) {
+			$files = glob( $dir . '/pricelist-*.csv' );
+			foreach ( is_array( $files ) ? $files : array() as $file ) {
+				@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			}
+		}
+	}
+
+	/**
+	 * The export staging directory (uploads/wc-pricebook), or '' when uploads is
+	 * unavailable. The directory lives under the web root, so when it is created it is
+	 * locked down: a deny rule for Apache, a web.config for IIS, and an index file to
+	 * stop directory listing. Servers that ignore those (e.g. nginx) are covered by the
+	 * unguessable file name from {@see self::run_file}.
+	 *
+	 * @param bool $create Whether to create and protect the directory.
+	 * @return string
+	 */
+	private static function export_dir( $create ) {
+		if ( ! function_exists( 'wp_upload_dir' ) ) {
+			return '';
+		}
+		$uploads = wp_upload_dir( null, false );
+		if ( ! empty( $uploads['error'] ) || empty( $uploads['basedir'] ) ) {
+			return '';
+		}
+		$dir = rtrim( $uploads['basedir'], '/\\' ) . '/wc-pricebook';
+		if ( ! $create ) {
+			return is_dir( $dir ) ? $dir : '';
+		}
+		if ( ! wp_mkdir_p( $dir ) ) {
+			return '';
+		}
+
+		$guards = array(
+			'.htaccess'  => "Require all denied\n<IfModule !mod_authz_core.c>\nOrder deny,allow\nDeny from all\n</IfModule>\n",
+			'web.config' => '<?xml version="1.0" encoding="UTF-8"?><configuration><system.webServer><authorization><deny users="*" /></authorization></system.webServer></configuration>',
+			'index.html' => '',
+		);
+		foreach ( $guards as $name => $contents ) {
+			if ( ! file_exists( $dir . '/' . $name ) ) {
+				@file_put_contents( $dir . '/' . $name, $contents ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			}
+		}
+		return $dir;
 	}
 
 	/**
 	 * A per-run CSV path under uploads/wc-pricebook (persists across batch requests).
+	 * The name carries 128 bits of randomness so the file cannot be found by guessing
+	 * the time of the run.
 	 *
 	 * @return string
 	 */
 	private function run_file() {
-		if ( function_exists( 'wp_upload_dir' ) ) {
-			$uploads = wp_upload_dir();
-			if ( empty( $uploads['error'] ) ) {
-				$dir = rtrim( $uploads['basedir'], '/\\' ) . '/wc-pricebook';
-				wp_mkdir_p( $dir );
-				return $dir . '/pricelist-' . gmdate( 'Ymd-His' ) . '.csv';
-			}
+		$name = 'pricelist-' . gmdate( 'Ymd-His' ) . '-' . bin2hex( random_bytes( 16 ) ) . '.csv';
+		$dir  = self::export_dir( true );
+		if ( '' !== $dir ) {
+			return $dir . '/' . $name;
 		}
 		$tmp = function_exists( 'get_temp_dir' ) ? get_temp_dir() : sys_get_temp_dir() . '/';
-		return rtrim( $tmp, '/\\' ) . '/wc-pricebook-pricelist-' . gmdate( 'Ymd-His' ) . '.csv';
+		return rtrim( $tmp, '/\\' ) . '/wc-pricebook-' . $name;
 	}
 
 	/**
@@ -511,7 +574,7 @@ class ExportModule {
 	 */
 	private function cli_default_file() {
 		$dir = function_exists( 'get_temp_dir' ) ? get_temp_dir() : sys_get_temp_dir() . '/';
-		return rtrim( $dir, '/\\' ) . '/wc-pricebook-pricelist-' . gmdate( 'Ymd-His' ) . '.csv';
+		return rtrim( $dir, '/\\' ) . '/wc-pricebook-pricelist-' . gmdate( 'Ymd-His' ) . '-' . bin2hex( random_bytes( 8 ) ) . '.csv';
 	}
 
 	/**

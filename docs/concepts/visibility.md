@@ -26,6 +26,23 @@ The same category-set control as tiers: All / Only selected / All except selecte
 - **Hide Product** — remove the matched products from the catalog for these users.
 - **Hide Pricing** — keep them visible but show **Call for Price** (empty price).
 
+### What "hidden" covers
+
+**Hide Product** is enforced on every front-end product query (shop and category
+archives, search, product shortcodes and blocks, related products, Store API listings),
+on the single product page (it returns a 404), and at purchase (the product cannot be
+added to a cart). Managers, wp-admin screens, WP-CLI, cron and background jobs always
+see the full catalog.
+
+**Hide Pricing** blanks the price, the regular and sale price, the "From" bulk teaser,
+the bulk pricing table and quantity-break pricing. For a variable product it also blanks
+the price range and each variation's price.
+
+::: warning Limits
+A Store API request for a single hidden product by ID still returns the product record.
+Tier pricing is not applied to product variations; only price hiding is.
+:::
+
 ## Example: "price requires a tier"
 
 > **Audience:** MSRP Customer · **Categories:** Special Order · **Hide:** Hide Pricing

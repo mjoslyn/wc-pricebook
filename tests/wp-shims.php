@@ -347,3 +347,28 @@ if ( ! function_exists( 'shortcode_atts' ) ) {
 		return $out;
 	}
 }
+
+if ( ! function_exists( 'get_posts' ) ) {
+	/**
+	 * Minimal get_posts(): returns the IDs of products in the in-memory store that
+	 * match a single product_cat tax_query clause (operator IN or NOT IN).
+	 *
+	 * @param array<string,mixed> $args Query args.
+	 * @return array<int,int>
+	 */
+	function get_posts( $args = array() ) {
+		$clause = $args['tax_query'][0] ?? array();
+		$terms  = array_map( 'intval', (array) ( $clause['terms'] ?? array() ) );
+		$not    = 'NOT IN' === ( $clause['operator'] ?? 'IN' );
+		$ids    = array_unique( array_merge( array_keys( Store::$post_meta ), array_keys( Store::$post_terms ) ) );
+		$out    = array();
+		foreach ( $ids as $id ) {
+			$in = has_term( $terms, (string) ( $clause['taxonomy'] ?? 'product_cat' ), $id );
+			if ( $in !== $not ) {
+				$out[] = (int) $id;
+			}
+		}
+		sort( $out );
+		return $out;
+	}
+}

@@ -30,6 +30,7 @@ namespace WCPricebook\CatalogPdf;
 use WCPricebook\Config;
 use WCPricebook\Context;
 use WCPricebook\PriceEngine;
+use WCPricebook\Export\Csv;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -302,7 +303,7 @@ class CatalogPdf {
 	 */
 	private function build_csv() {
 		$fh = fopen( 'php://temp', 'r+' );
-		fputcsv( $fh, array( 'SKU', 'Name', 'Price', 'Description', 'Category', 'URL' ) );
+		Csv::put( $fh, array( 'SKU', 'Name', 'Price', 'Description', 'Category', 'URL' ) );
 
 		foreach ( $this->catalog_groups() as $group ) {
 			$category_name = $group['term']->name;
@@ -314,14 +315,16 @@ class CatalogPdf {
 				if ( ! $wc_product ) {
 					continue;
 				}
-				fputcsv(
+				// Text cells are neutralized against formula injection; the URL cell is
+				// the one deliberate formula (built from an escaped permalink).
+				Csv::put(
 					$fh,
 					array(
-						$wc_product->get_sku(),
-						$product->post_title,
+						Csv::cell( $wc_product->get_sku() ),
+						Csv::cell( $product->post_title ),
 						$this->user_price_number( $wc_product ),
-						$this->product_description( $wc_product ),
-						$category_name,
+						Csv::cell( $this->product_description( $wc_product ) ),
+						Csv::cell( $category_name ),
 						$this->hyperlink_cell( get_permalink( $product->ID ) ),
 					)
 				);
@@ -534,7 +537,7 @@ class CatalogPdf {
 		}
 
 		// Per-viewer visibility: managers see the whole catalog (mirrors
-		// WooHooks::filter_archive_visibility, which returns early for managers);
+		// WooHooks::filter_product_visibility, which returns early for managers);
 		// everyone else is filtered to the products their visibility rules allow, so
 		// the export never lists a product hidden from them on the storefront.
 		$filter_visibility = ! $this->context->is_manager();

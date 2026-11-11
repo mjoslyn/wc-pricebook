@@ -143,6 +143,157 @@ class WooHooksTest extends TestCase {
 	}
 
 	/**
+	 * A retail (no-tier) customer viewing product 20 in category 999, where the 'gate'
+	 * visibility role hides pricing ("Call for Price").
+	 *
+	 * @return FakeProduct
+	 */
+	private function gated_product() {
+		Store::add_user( 8, array( 'customer' ), array() );
+		Store::$current_user = 8;
+		$this->set_meta( 20, array( '_regular_price' => '100' ) );
+		$this->set_terms( 20, 'product_cat', array( 999 ) );
+		return new FakeProduct( 20 );
+	}
+
+	public function test_hidden_price_does_not_leak_through_the_regular_price() {
+		$product = $this->gated_product();
+
+		$this->assertSame( '', (string) $this->hooks->get_price( '100', $product ) );
+		// Previously returned the MSRP ("100") here.
+		$this->assertSame( '', (string) $this->hooks->get_regular_price( '100', $product ) );
+		$this->assertSame( '', (string) $this->hooks->get_sale_price( '', $product ) );
+	}
+
+	public function test_hidden_price_does_not_leak_through_bulk_pricing() {
+		$product = $this->gated_product();
+		// A quantity break aimed at MSRP customers on the same product.
+		$this->set_meta(
+			20,
+			array(
+				'_pricebook_bulk_pricing' => array(
+					\WCPricebook\Context::MSRP_CUSTOMER => array( array( 'min_qty' => 1, 'max_qty' => 0, 'price' => '80' ) ),
+				),
+			)
+		);
+
+		$this->assertTrue( $this->engine->price_hidden( 20 ) );
+		$this->assertSame( '', (string) $this->engine->from_price( null, $product ) );
+		$this->assertSame( '', (string) $this->engine->effective_price_qty( null, $product, 5 ) );
+		$this->assertSame( 'HTML', $this->hooks->bulk_price_html( 'HTML', $product ) );
+	}
+
+	public function test_force_visible_rule_keeps_the_price_and_bulk_pricing() {
+		$product = $this->gated_product();
+		$this->set_terms( 20, 'product_flag', array( 432 ) ); // force_visible.
+
+		$this->assertFalse( $this->engine->price_hidden( 20 ) );
+		$this->assertSame( '100', (string) $this->hooks->get_regular_price( '100', $product ) );
+	}
+
+	public function test_variation_price_is_blanked_when_parent_price_is_hidden() {
+		$this->gated_product();
+		$variation = new class() {
+			public function get_id() {
+				return 21;
+			}
+			public function get_parent_id() {
+				return 20;
+			}
+			public function get_type() {
+				return 'variation';
+			}
+		};
+
+		$this->assertSame( '', $this->hooks->hide_variation_price( '45', $variation ) );
+
+		// A variation of a product whose price is not hidden is left untouched.
+		$this->set_terms( 20, 'product_cat', array() );
+		$this->assertSame( '45', $this->hooks->hide_variation_price( '45', $variation ) );
+	}
+
+	public function test_hidden_products_are_removed_from_product_queries() {
+		// The 'region_a' visibility role hides category 555 from dealers (user 5).
+		$this->set_terms( 30, 'product_cat', array( 555 ) );
+		$this->set_terms( 31, 'product_cat', array( 123 ) );
+		// Product 32 is in the hidden category but forces itself visible to dealers.
+		$this->set_terms( 32, 'product_cat', array( 555 ) );
+		$this->set_meta( 32, array( \WCPricebook\Context::FORCE_VISIBLE_ROLES_META => array( 'dealer' ) ) );
+
+		$query = $this->fake_query( array( 'post_type' => 'product' ) );
+		$this->hooks->filter_product_visibility( $query );
+		$this->assertSame( array( 30 ), $query->get( 'post__not_in' ) );
+
+		// post__in wins over post__not_in in WP_Query, so it is narrowed directly.
+		$query = $this->fake_query( array( 'post_type' => 'product', 'post__in' => array( 30, 31 ) ) );
+		$this->hooks->filter_product_visibility( $query );
+		$this->assertSame( array( 31 ), $query->get( 'post__in' ) );
+
+		$query = $this->fake_query( array( 'post_type' => 'product', 'post__in' => array( 30 ) ) );
+		$this->hooks->filter_product_visibility( $query );
+		$this->assertSame( array( 0 ), $query->get( 'post__in' ) );
+
+		// Queries for other post types are not touched.
+		$query = $this->fake_query( array( 'post_type' => 'nav_menu_item' ) );
+		$this->hooks->filter_product_visibility( $query );
+		$this->assertSame( '', $query->get( 'post__not_in' ) );
+
+		// Hidden products are neither visible in loops nor purchasable.
+		$this->assertFalse( $this->hooks->product_is_visible( true, 30 ) );
+		$this->assertTrue( $this->hooks->product_is_visible( true, 32 ) );
+		$this->assertFalse( $this->hooks->is_purchasable( true, new FakeProduct( 30 ) ) );
+		$this->assertTrue( $this->hooks->is_purchasable( true, new FakeProduct( 31 ) ) );
+	}
+
+	public function test_managers_see_the_whole_catalog() {
+		$this->set_terms( 30, 'product_cat', array( 555 ) );
+		Store::add_user( 1, array( 'administrator', 'dealer' ), array( 'manage_woocommerce', 'dealer' ) );
+		Store::$current_user = 1;
+
+		$query = $this->fake_query( array( 'post_type' => 'product' ) );
+		$this->hooks->filter_product_visibility( $query );
+		$this->assertSame( '', $query->get( 'post__not_in' ) );
+		$this->assertTrue( $this->hooks->product_is_visible( true, 30 ) );
+	}
+
+	/**
+	 * A minimal WP_Query stand-in exposing get()/set().
+	 *
+	 * @param array<string,mixed> $vars Query vars.
+	 * @return object
+	 */
+	private function fake_query( array $vars ) {
+		return new class( $vars ) {
+			/** @var array<string,mixed> */
+			private $vars;
+
+			/**
+			 * @param array<string,mixed> $vars Query vars.
+			 */
+			public function __construct( array $vars ) {
+				$this->vars = $vars;
+			}
+
+			/**
+			 * @param string $key Query var.
+			 * @return mixed
+			 */
+			public function get( $key ) {
+				return $this->vars[ $key ] ?? '';
+			}
+
+			/**
+			 * @param string $key   Query var.
+			 * @param mixed  $value Value.
+			 * @return void
+			 */
+			public function set( $key, $value ) {
+				$this->vars[ $key ] = $value;
+			}
+		};
+	}
+
+	/**
 	 * A minimal WC_Cart stand-in exposing the get_cart() shape apply_bulk_cart_pricing
 	 * iterates: a list of items each with a 'data' product and a 'quantity'.
 	 *

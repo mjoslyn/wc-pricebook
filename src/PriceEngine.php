@@ -505,6 +505,41 @@ class PriceEngine {
 	}
 
 	/**
+	 * Whether a product's price is deliberately hidden ("Call for Price") for the
+	 * current (or explicit) user: the call_for_price rule, or a Hide-Pricing visibility
+	 * role that no force-price override lifts.
+	 *
+	 * Mirrors the gate order in {@see self::price_for_user}, so the two always agree: a
+	 * manager's switcher preview and a customer-specific override price both come first
+	 * and are never hidden. Every code path that can show a price WITHOUT going through
+	 * price_for_user (the regular price, the "From" bulk teaser, quantity-break pricing,
+	 * the bulk table, variations) must check this, or the hidden price leaks there.
+	 *
+	 * @param int      $product_id Product ID (the parent ID for a variation).
+	 * @param int|null $user_id    Specific user ID, or null for the current pricing user.
+	 * @return bool
+	 */
+	public function price_hidden( $product_id, $user_id = null ) {
+		$product_id = (int) $product_id;
+		$explicit   = ( null !== $user_id );
+		$user_id    = $explicit ? $this->context->resolve_pricing_user_id( $user_id ) : $this->context->pricing_user_id();
+
+		if ( ! $explicit && $this->context->is_manager() && '' !== $this->context->switcher_role() ) {
+			return false;
+		}
+		if ( '' !== (string) $this->user_override_price( $product_id, $user_id ) ) {
+			return false;
+		}
+		if ( $this->rules->applies( 'call_for_price', $product_id ) ) {
+			return true;
+		}
+		$price_forced = $this->rules->applies( 'force_visible', $product_id )
+			|| $this->context->user_force_price( $product_id, $user_id );
+
+		return ! $price_forced && $this->context->price_hidden_by_visibility_role( $product_id, $user_id );
+	}
+
+	/**
 	 * Resolve the simple effective price WooCommerce should display (lowest of
 	 * regular vs sale), for the current/explicit user.
 	 *
@@ -590,6 +625,12 @@ class PriceEngine {
 		$explicit = ( null !== $user_id );
 		$normal   = $this->effective_price( $price, $product, $explicit ? $user_id : null );
 
+		// A hidden price stays hidden at every quantity: a bulk break must not put a
+		// price back on a product this user is shown as "Call for Price".
+		if ( $this->price_hidden( $product->get_id(), $explicit ? $user_id : null ) ) {
+			return $normal;
+		}
+
 		// Bulk breaks are keyed by their own minimum quantity, so a break may start at
 		// any quantity — including 1. Consider bulk at every quantity and let the break
 		// lookup below decide: when the quantity is under the lowest break's minimum no
@@ -644,6 +685,11 @@ class PriceEngine {
 		}
 		$explicit      = ( null !== $user_id );
 		$resolved_user = $explicit ? $this->context->resolve_pricing_user_id( $user_id ) : $this->context->pricing_user_id();
+
+		// A hidden price ("Call for Price") must not resurface as a "From $X" teaser.
+		if ( $this->price_hidden( $product->get_id(), $explicit ? $user_id : null ) ) {
+			return '';
+		}
 
 		// A customer-specific price is fixed, so there is no "from" bulk teaser.
 		if ( '' !== (string) $this->user_override_price( $product->get_id(), $resolved_user ) ) {
