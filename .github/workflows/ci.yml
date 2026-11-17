@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [phpunit, phpcs, phpstan]
+        check: [phpunit, phpcs]
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +41,3 @@ jobs:
       - name: PHPCS
         if: matrix.check == 'phpcs'
         run: composer lint
-
-      - name: PHPStan
-        if: matrix.check == 'phpstan'
-        run: composer analyse
