@@ -149,7 +149,7 @@ class Plugin {
 		}
 
 		if ( $this->config->module_enabled( 'product_prices' ) ) {
-			( new ProductPrices( $this->config, $this->context, $this->engine ) )->register();
+			( new ProductPrices( $this->config, $this->engine ) )->register();
 		}
 
 		// Pricelist CSV export (WP-CLI + cron + settings "Send now"). Always registered:

@@ -13,7 +13,6 @@
 namespace WCPricebook\ProductPrices;
 
 use WCPricebook\Config;
-use WCPricebook\Context;
 use WCPricebook\PriceEngine;
 use WCPricebook\Flowchart\Flowchart;
 
@@ -34,13 +33,6 @@ class ProductPrices {
 	private $config;
 
 	/**
-	 * Context.
-	 *
-	 * @var Context
-	 */
-	private $context;
-
-	/**
 	 * Engine.
 	 *
 	 * @var PriceEngine
@@ -50,14 +42,12 @@ class ProductPrices {
 	/**
 	 * Constructor.
 	 *
-	 * @param Config      $config  Config.
-	 * @param Context     $context Context.
-	 * @param PriceEngine $engine  Engine.
+	 * @param Config      $config Config.
+	 * @param PriceEngine $engine Engine.
 	 */
-	public function __construct( Config $config, Context $context, PriceEngine $engine ) {
-		$this->config  = $config;
-		$this->context = $context;
-		$this->engine  = $engine;
+	public function __construct( Config $config, PriceEngine $engine ) {
+		$this->config = $config;
+		$this->engine = $engine;
 	}
 
 	/**
