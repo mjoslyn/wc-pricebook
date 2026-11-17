@@ -86,10 +86,10 @@ class PriceEngine {
 	/**
 	 * Price for a product as a specific named tier ("price as role").
 	 *
-	 * @param int                   $product_id Product ID.
-	 * @param string                $tier_key   Tier key, or 'msrp'.
-	 * @param bool                  $sale       Whether to resolve the sale price.
-	 * @param array<string,bool>    $guard      Tiers already on the resolution chain (cycle guard).
+	 * @param int                $product_id Product ID.
+	 * @param string             $tier_key   Tier key, or 'msrp'.
+	 * @param bool               $sale       Whether to resolve the sale price.
+	 * @param array<string,bool> $guard      Tiers already on the resolution chain (cycle guard).
 	 * @return array{0:mixed,1:array<int,string>} [ price, history ]
 	 */
 	public function price_as_tier( $product_id, $tier_key, $sale = false, $guard = array() ) {
@@ -100,7 +100,7 @@ class PriceEngine {
 		if ( 'msrp' === $tier_key ) {
 			if ( $sale ) {
 				$sale_price = get_post_meta( $product_id, $base['sale'], true );
-				if ( '' !== (string) $sale_price && $sale_price != $original ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
+				if ( '' !== (string) $sale_price && $sale_price != $original ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison, Universal.Operators.StrictComparisons.LooseNotEqual
 					$history[] = $sale_price . ' - MSRP sale';
 					return array( $sale_price, $history );
 				}
@@ -133,7 +133,7 @@ class PriceEngine {
 		// no_tier_discount: a discounted tier (multiplier != 1) drops its discount and
 		// is priced as its fallback role instead, carrying the sale flag.
 		if (
-			(float) $tier['multiplier'] !== 1.0 &&
+			1.0 !== (float) $tier['multiplier'] &&
 			'' !== (string) $tier['fallback_to'] &&
 			$tier['fallback_to'] !== $tier_key &&
 			$this->rules->applies( 'no_tier_discount', $product_id )
@@ -273,7 +273,7 @@ class PriceEngine {
 	/**
 	 * Whether a product matches a category-scope set { mode, categories }.
 	 *
-	 * mode 'all' (or an empty list) matches everything; 'include' requires the
+	 * Mode 'all' (or an empty list) matches everything; 'include' requires the
 	 * product to be in one of the categories; 'exclude' requires it not to be.
 	 *
 	 * @param array<string,mixed> $set        Category set.
@@ -417,9 +417,9 @@ class PriceEngine {
 
 		// Tier membership: a user may belong to several tiers; the lowest resolved price
 		// wins — UNLESS an overriding tier applies (see Config tier 'override'):
-		//   'always'      — wins outright using its resolved price (fallback included).
-		//   'when_priced' — wins only when it has its own price set for this product;
-		//                   otherwise it is inert and the lowest-wins comparison runs.
+		// 'always'      — wins outright using its resolved price (fallback included).
+		// 'when_priced' — wins only when it has its own price set for this product;
+		// otherwise it is inert and the lowest-wins comparison runs.
 		// An override only takes effect in the tier's category scope. When a user holds
 		// both kinds for the same product, precedence is by TYPE: always > when_priced >
 		// lowest candidate (config order does not decide it). Two tiers of the SAME
@@ -814,8 +814,8 @@ class PriceEngine {
 		$best_min   = -1;
 		$best_price = '';
 		foreach ( $this->bulk_breaks( $product_id, $tier_key ) as $row ) {
-			$min = (int) $row['min_qty'];
-			$max = (int) $row['max_qty'];
+			$min      = (int) $row['min_qty'];
+			$max      = (int) $row['max_qty'];
 			$in_range = $min <= $qty && ( 0 === $max || $qty <= $max );
 			// On overlap the most specific (highest) lower bound wins.
 			if ( $in_range && $min > $best_min ) {
@@ -860,7 +860,11 @@ class PriceEngine {
 			if ( $max > 0 && $max < $min ) {
 				continue;
 			}
-			$rows[] = array( 'min_qty' => $min, 'max_qty' => $max, 'price' => (string) $row['price'] );
+			$rows[] = array(
+				'min_qty' => $min,
+				'max_qty' => $max,
+				'price'   => (string) $row['price'],
+			);
 		}
 
 		usort(

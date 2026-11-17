@@ -86,7 +86,8 @@ class UserProfile {
 	 * @return bool
 	 */
 	private function can_manage() {
-		return current_user_can( $this->config->manager()['capability'] ?: 'manage_woocommerce' );
+		$capability = $this->config->manager()['capability'];
+		return current_user_can( $capability ? $capability : 'manage_woocommerce' );
 	}
 
 	/**
@@ -181,7 +182,7 @@ class UserProfile {
 							$row_index = 0;
 							foreach ( $cat_role_maps as $map ) {
 								$this->render_catrole_row( (string) $row_index, $map['product-category'], $map['pricing-role'], $cat_terms, $role_options );
-								$row_index++;
+								++$row_index;
 							}
 							?>
 						</div>
@@ -254,6 +255,8 @@ class UserProfile {
 
 		$keys = $this->config->user_meta_keys();
 
+		// parse_id_list() reduces each list to positive integers.
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		// My Products + include/exclude category lists (stored as int arrays).
 		$my_products = isset( $_POST['wc_pricebook_my_products'] ) ? $this->parse_id_list( wp_unslash( $_POST['wc_pricebook_my_products'] ) ) : array();
 		update_user_meta( $user_id, $keys['include_products'], $my_products );
@@ -262,6 +265,7 @@ class UserProfile {
 		update_user_meta( $user_id, $keys['include_categories'], $include_cats );
 
 		$exclude_cats = isset( $_POST['wc_pricebook_exclude_categories'] ) ? $this->parse_id_list( wp_unslash( $_POST['wc_pricebook_exclude_categories'] ) ) : array();
+		// phpcs:enable
 		update_user_meta( $user_id, $keys['exclude_categories'], $exclude_cats );
 
 		// Category → role mappings (validated against MSRP + the configured tier keys).
@@ -308,9 +312,9 @@ class UserProfile {
 	/**
 	 * Render a WooCommerce enhanced-select multi-select of product categories.
 	 *
-	 * @param string                $name     Field base name (posts under "<name>[]").
-	 * @param array<int,int>        $selected Selected term IDs.
-	 * @param array<int,\WP_Term>   $terms    All category terms.
+	 * @param string              $name     Field base name (posts under "<name>[]").
+	 * @param array<int,int>      $selected Selected term IDs.
+	 * @param array<int,\WP_Term> $terms    All category terms.
 	 * @return void
 	 */
 	private function category_multiselect( $name, array $selected, array $terms ) {
@@ -329,11 +333,11 @@ class UserProfile {
 	 * Render one Category Pricing Roles repeater row: a category multi-select plus
 	 * a pricing-role dropdown.
 	 *
-	 * @param string                $index        Row index (or "__INDEX__" template placeholder).
-	 * @param array<int,int>        $selected     Selected category IDs.
-	 * @param string                $role         Selected pricing role.
-	 * @param array<int,\WP_Term>   $terms        All category terms.
-	 * @param array<string,string>  $role_options Role option map (key => label).
+	 * @param string               $index        Row index (or "__INDEX__" template placeholder).
+	 * @param array<int,int>       $selected     Selected category IDs.
+	 * @param string               $role         Selected pricing role.
+	 * @param array<int,\WP_Term>  $terms        All category terms.
+	 * @param array<string,string> $role_options Role option map (key => label).
 	 * @return void
 	 */
 	private function render_catrole_row( $index, array $selected, $role, array $terms, array $role_options ) {

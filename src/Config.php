@@ -107,17 +107,20 @@ class Config {
 		return array(
 			'tiers'             => array(
 				'wholesale' => array(
-					'key'        => 'wholesale',
-					'label'      => 'Wholesale',
-					'price_meta' => '_wholesale_price',
-					'sale_meta'  => '_wholesale_sale_price',
-					'multiplier' => 1.0,
+					'key'                => 'wholesale',
+					'label'              => 'Wholesale',
+					'price_meta'         => '_wholesale_price',
+					'sale_meta'          => '_wholesale_sale_price',
+					'multiplier'         => 1.0,
 					/* Base pricing role ('msrp' or a tier key) whose price is multiplied when no specific price is set. Empty = no multiplier fallback. */
-					'base_meta'  => '',
+					'base_meta'          => '',
 					/* 'msrp', another tier key, or '' for what to return when nothing matches (also used by the no_tier_discount rule). */
-					'fallback_to' => 'msrp',
+					'fallback_to'        => 'msrp',
 					/* Category scope for which products this tier prices. */
-					'pricing_categories'    => array( 'mode' => 'all', 'categories' => array() ),
+					'pricing_categories' => array(
+						'mode'       => 'all',
+						'categories' => array(),
+					),
 				),
 			),
 			/* Visibility roles: named category-visibility scopes, independent of pricing. */
@@ -127,10 +130,10 @@ class Config {
 			/* Per-user product override meta key. Empty = use USER_PRICING_META default. */
 			'user_pricing_meta' => '',
 			'rules'             => array(
-				'skip_matrix'       => array( 'bindings' => array() ),
-				'no_tier_discount'  => array( 'bindings' => array() ),
-				'force_visible'     => array( 'bindings' => array() ),
-				'call_for_price'    => array( 'bindings' => array() ),
+				'skip_matrix'      => array( 'bindings' => array() ),
+				'no_tier_discount' => array( 'bindings' => array() ),
+				'force_visible'    => array( 'bindings' => array() ),
+				'call_for_price'   => array( 'bindings' => array() ),
 			),
 			/* "Call for Price" label shown for empty-priced products. Empty = leave WooCommerce's default. */
 			'modules'           => array(
@@ -207,28 +210,28 @@ class Config {
 
 		$normalized = array();
 		foreach ( $tiers as $key => $tier ) {
-			$tier               = is_array( $tier ) ? $tier : array();
-			$tier['key']        = isset( $tier['key'] ) ? $tier['key'] : $key;
-			$tier['label']      = isset( $tier['label'] ) ? $tier['label'] : ucfirst( $key );
+			$tier          = is_array( $tier ) ? $tier : array();
+			$tier['key']   = isset( $tier['key'] ) ? $tier['key'] : $key;
+			$tier['label'] = isset( $tier['label'] ) ? $tier['label'] : ucfirst( $key );
 			// Price meta keys default to a stable per-tier key so a manual per-product
 			// price (set in the product meta box) always has somewhere to live.
-			$tier['price_meta'] = isset( $tier['price_meta'] ) && '' !== $tier['price_meta'] ? $tier['price_meta'] : '_pricebook_' . $tier['key'] . '_price';
-			$tier['sale_meta']  = isset( $tier['sale_meta'] ) && '' !== $tier['sale_meta'] ? $tier['sale_meta'] : '_pricebook_' . $tier['key'] . '_sale_price';
-			$tier['multiplier'] = isset( $tier['multiplier'] ) ? (float) $tier['multiplier'] : 1.0;
-			$tier['base_meta']  = isset( $tier['base_meta'] ) ? $tier['base_meta'] : '';
+			$tier['price_meta']  = isset( $tier['price_meta'] ) && '' !== $tier['price_meta'] ? $tier['price_meta'] : '_pricebook_' . $tier['key'] . '_price';
+			$tier['sale_meta']   = isset( $tier['sale_meta'] ) && '' !== $tier['sale_meta'] ? $tier['sale_meta'] : '_pricebook_' . $tier['key'] . '_sale_price';
+			$tier['multiplier']  = isset( $tier['multiplier'] ) ? (float) $tier['multiplier'] : 1.0;
+			$tier['base_meta']   = isset( $tier['base_meta'] ) ? $tier['base_meta'] : '';
 			$tier['fallback_to'] = isset( $tier['fallback_to'] ) ? $tier['fallback_to'] : 'msrp';
 			// How the tier overrides the lowest-wins comparison when it applies (the
 			// user belongs to it and it is in category scope):
-			//   'always'      — always wins, using its resolved price (fallback included),
-			//                   e.g. a parts tier pinning a category to dealer or MSRP.
-			//   'when_priced' — wins ONLY when the tier has its own price set for the
-			//                   product; otherwise it is inert and lowest-wins runs, e.g.
-			//                   operator pricing that overrides only where it is set.
-			//   ''            — no override; the tier is a normal lowest-wins candidate.
-			$override          = isset( $tier['override'] ) ? (string) $tier['override'] : '';
-			$tier['override']  = in_array( $override, array( 'always', 'when_priced' ), true ) ? $override : '';
+			// 'always'      — always wins, using its resolved price (fallback included),
+			// e.g. a parts tier pinning a category to dealer or MSRP.
+			// 'when_priced' — wins ONLY when the tier has its own price set for the
+			// product; otherwise it is inert and lowest-wins runs, e.g.
+			// operator pricing that overrides only where it is set.
+			// ''            — no override; the tier is a normal lowest-wins candidate.
+			$override                   = isset( $tier['override'] ) ? (string) $tier['override'] : '';
+			$tier['override']           = in_array( $override, array( 'always', 'when_priced' ), true ) ? $override : '';
 			$tier['pricing_categories'] = $this->normalize_category_set( isset( $tier['pricing_categories'] ) ? $tier['pricing_categories'] : array() );
-			$tier['notes']      = isset( $tier['notes'] ) ? (string) $tier['notes'] : '';
+			$tier['notes']              = isset( $tier['notes'] ) ? (string) $tier['notes'] : '';
 			$normalized[ $tier['key'] ] = $tier;
 		}
 
@@ -252,28 +255,28 @@ class Config {
 
 		$normalized = array();
 		foreach ( $roles as $key => $role ) {
-			$role       = is_array( $role ) ? $role : array();
-			$key        = isset( $role['key'] ) ? $role['key'] : $key;
-			$want       = isset( $role['roles'] ) && is_array( $role['roles'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $role['roles'] ) ) ) ) : array();
-			$except     = isset( $role['exclude_roles'] ) && is_array( $role['exclude_roles'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $role['exclude_roles'] ) ) ) ) : array();
-			$users      = isset( $role['users'] ) && is_array( $role['users'] ) ? array_values( array_unique( array_filter( array_map( 'intval', $role['users'] ) ) ) ) : array();
-			$match      = isset( $role['match'] ) && 'all' === $role['match'] ? 'all' : 'any';
+			$role   = is_array( $role ) ? $role : array();
+			$key    = isset( $role['key'] ) ? $role['key'] : $key;
+			$want   = isset( $role['roles'] ) && is_array( $role['roles'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $role['roles'] ) ) ) ) : array();
+			$except = isset( $role['exclude_roles'] ) && is_array( $role['exclude_roles'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $role['exclude_roles'] ) ) ) ) : array();
+			$users  = isset( $role['users'] ) && is_array( $role['users'] ) ? array_values( array_unique( array_filter( array_map( 'intval', $role['users'] ) ) ) ) : array();
+			$match  = isset( $role['match'] ) && 'all' === $role['match'] ? 'all' : 'any';
 			// Category SET ({ mode, categories }) — the same scoping model as pricing tiers.
-			$categories = $this->normalize_category_set( isset( $role['categories'] ) ? $role['categories'] : array() );
+			$categories         = $this->normalize_category_set( isset( $role['categories'] ) ? $role['categories'] : array() );
 			$hide               = isset( $role['hide'] ) ? (string) $role['hide'] : '';
 			$hide               = in_array( $hide, array( 'product', 'pricing' ), true ) ? $hide : '';
 			$normalized[ $key ] = array(
-				'key'        => $key,
-				'label'      => isset( $role['label'] ) ? $role['label'] : ucfirst( $key ),
-				'roles'      => $want,
+				'key'           => $key,
+				'label'         => isset( $role['label'] ) ? $role['label'] : ucfirst( $key ),
+				'roles'         => $want,
 				// Users holding any of these roles are exempt even if they match `roles`.
 				'exclude_roles' => $except,
-				'users'      => $users,
-				'match'      => $match,
-				'categories' => $categories,
+				'users'         => $users,
+				'match'         => $match,
+				'categories'    => $categories,
 				// Single action: '' none, 'product' (remove from catalog), 'pricing' (Call for Price).
-				'hide'       => $hide,
-				'notes'      => isset( $role['notes'] ) ? (string) $role['notes'] : '',
+				'hide'          => $hide,
+				'notes'         => isset( $role['notes'] ) ? (string) $role['notes'] : '',
 			);
 		}
 

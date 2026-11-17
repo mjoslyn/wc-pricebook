@@ -435,7 +435,8 @@ class Context {
 	/**
 	 * User IDs a product forces the catalog visibility / price visible for.
 	 *
-	 * @param int $product_id Product ID.
+	 * @param int    $product_id Product ID.
+	 * @param string $meta_key   Meta key holding the user ID list.
 	 * @return array<int,int>
 	 */
 	private function product_force_users( $product_id, $meta_key ) {
@@ -550,6 +551,7 @@ class Context {
 	 * tier. An empty role list matches nobody (membership then requires explicit
 	 * per-user assignment).
 	 *
+	 * @param int                 $user_id    User ID.
 	 * @param array<string,mixed> $role       Normalized visibility role.
 	 * @param array<int,string>   $user_roles The user's WP roles.
 	 * @param bool                $is_msrp    Whether the user is an MSRP customer (no tier).
@@ -621,12 +623,20 @@ class Context {
 	public function product_visible_for_user( $product_id, $user_id ) {
 		$user = get_userdata( $user_id );
 		if ( $user && $this->user_is_manager( $user ) ) {
-			return array( 'visible' => true, 'reason' => 'manager', 'categories' => array() );
+			return array(
+				'visible'    => true,
+				'reason'     => 'manager',
+				'categories' => array(),
+			);
 		}
 
 		// Per-product force-visible (by role or specific user) overrides Hide-visibility.
 		if ( $this->user_force_visible( $product_id, $user_id ) ) {
-			return array( 'visible' => true, 'reason' => 'forced_role', 'categories' => array() );
+			return array(
+				'visible'    => true,
+				'reason'     => 'forced_role',
+				'categories' => array(),
+			);
 		}
 
 		$cats    = $this->effective_visibility_categories( $user_id );
@@ -634,15 +644,31 @@ class Context {
 		$include = array_map( 'intval', $cats['include'] );
 
 		if ( ! empty( $exclude ) && has_term( $exclude, 'product_cat', $product_id ) ) {
-			return array( 'visible' => false, 'reason' => 'excluded', 'categories' => $exclude );
+			return array(
+				'visible'    => false,
+				'reason'     => 'excluded',
+				'categories' => $exclude,
+			);
 		}
 		if ( ! empty( $include ) && ! has_term( $include, 'product_cat', $product_id ) ) {
-			return array( 'visible' => false, 'reason' => 'not_in_include', 'categories' => $include );
+			return array(
+				'visible'    => false,
+				'reason'     => 'not_in_include',
+				'categories' => $include,
+			);
 		}
 		if ( empty( $include ) && empty( $exclude ) ) {
-			return array( 'visible' => true, 'reason' => 'unrestricted', 'categories' => array() );
+			return array(
+				'visible'    => true,
+				'reason'     => 'unrestricted',
+				'categories' => array(),
+			);
 		}
-		return array( 'visible' => true, 'reason' => 'allowed', 'categories' => ! empty( $include ) ? $include : $exclude );
+		return array(
+			'visible'    => true,
+			'reason'     => 'allowed',
+			'categories' => ! empty( $include ) ? $include : $exclude,
+		);
 	}
 
 	/**

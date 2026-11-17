@@ -223,7 +223,7 @@ class ProductMeta {
 										continue;
 									}
 									$this->render_row( (string) $index, $key, $value, $sale );
-									$index++;
+									++$index;
 								}
 								?>
 							</div>
@@ -465,7 +465,7 @@ class ProductMeta {
 					$index = 0;
 					foreach ( $groups as $group ) {
 						$this->render_bulk_row( (string) $index, $group['roles'], $group['min_qty'], $group['max_qty'], $group['price'] );
-						$index++;
+						++$index;
 					}
 					?>
 				</div>
@@ -519,8 +519,8 @@ class ProductMeta {
 	 * Whether a bulk-break target key is valid: a configured pricing tier, the synthetic
 	 * "MSRP Customer", or a registered WP role.
 	 *
-	 * @param string                             $key   Sanitized target key.
-	 * @param array<string,array<string,mixed>>  $tiers Configured tiers.
+	 * @param string                            $key   Sanitized target key.
+	 * @param array<string,array<string,mixed>> $tiers Configured tiers.
 	 * @return bool
 	 */
 	private function is_valid_bulk_target( $key, array $tiers ) {
@@ -530,6 +530,16 @@ class ProductMeta {
 		return function_exists( 'wp_roles' ) && wp_roles()->is_role( $key );
 	}
 
+	/**
+	 * Render a single bulk-break row.
+	 *
+	 * @param string            $index   Row index (or "__INDEX__").
+	 * @param array<int,string> $roles   Selected target keys.
+	 * @param int|string        $min_qty Minimum quantity.
+	 * @param int|string        $max_qty Maximum quantity.
+	 * @param string            $price   Price value.
+	 * @return void
+	 */
 	private function render_bulk_row( $index, array $roles, $min_qty, $max_qty, $price ) {
 		$base  = 'pricebook_bulk_price[' . $index . ']';
 		$roles = array_map( 'strval', $roles );
@@ -613,7 +623,7 @@ class ProductMeta {
 					$index = 0;
 					foreach ( $groups as $group ) {
 						$this->render_user_row( (string) $index, $group['users'], $group['price'] );
-						$index++;
+						++$index;
 					}
 					?>
 				</div>
@@ -631,9 +641,9 @@ class ProductMeta {
 	/**
 	 * Render a single customer/price row using WooCommerce's customer-search select.
 	 *
-	 * @param string $index   Row index (or "__INDEX__").
-	 * @param int    $user_id Selected customer ID (0 for a blank row).
-	 * @param string $price   Price value.
+	 * @param string         $index    Row index (or "__INDEX__").
+	 * @param array<int,int> $user_ids Selected customer IDs (empty for a blank row).
+	 * @param string         $price    Price value.
 	 * @return void
 	 */
 	private function render_user_row( $index, array $user_ids, $price ) {
@@ -728,8 +738,9 @@ class ProductMeta {
 			return;
 		}
 
+		// Each row field is sanitized individually below.
 		$rows = isset( $_POST['pricebook_role_price'] ) && is_array( $_POST['pricebook_role_price'] )
-			? wp_unslash( $_POST['pricebook_role_price'] )
+			? wp_unslash( $_POST['pricebook_role_price'] ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			: array();
 
 		$tiers = $this->config->tiers();
@@ -797,7 +808,7 @@ class ProductMeta {
 		}
 
 		// Per-product rule flag checkboxes.
-		$rule_flags = isset( $_POST['wc_pricebook_rule'] ) && is_array( $_POST['wc_pricebook_rule'] ) ? $_POST['wc_pricebook_rule'] : array();
+		$rule_flags = isset( $_POST['wc_pricebook_rule'] ) && is_array( $_POST['wc_pricebook_rule'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['wc_pricebook_rule'] ) ) : array();
 		foreach ( $this->rule_flag_keys() as $rule ) {
 			if ( ! empty( $rule_flags[ $rule ] ) ) {
 				update_post_meta( $post_id, \WCPricebook\Rules::flag_meta_key( $rule ), '1' );
@@ -822,9 +833,12 @@ class ProductMeta {
 			return;
 		}
 
+		// Nonce verified in save(); each row field is sanitized individually below.
+		// phpcs:disable WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$rows = isset( $_POST['pricebook_bulk_price'] ) && is_array( $_POST['pricebook_bulk_price'] )
 			? wp_unslash( $_POST['pricebook_bulk_price'] )
 			: array();
+		// phpcs:enable
 
 		$tiers = $this->config->tiers();
 
@@ -890,9 +904,12 @@ class ProductMeta {
 			return;
 		}
 
+		// Nonce verified in save(); each row field is sanitized individually below.
+		// phpcs:disable WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$rows = isset( $_POST['pricebook_user_price'] ) && is_array( $_POST['pricebook_user_price'] )
 			? wp_unslash( $_POST['pricebook_user_price'] )
 			: array();
+		// phpcs:enable
 
 		// Keyed by user id so a duplicate customer collapses to the last row entered.
 		// A row may target several customers at once (user-id[]); it fans out to one
