@@ -978,7 +978,7 @@ class Flowchart {
 													?>
 													<li>
 														<span class="qty"><?php echo wp_kses_post( $range ); ?></span>
-														<span class="price"><?php echo wp_kses_post( wc_price( $break['price'] ) ); ?></span>
+														<span class="price"><?php echo wp_kses_post( wc_price( (float) $break['price'] ) ); ?></span>
 														<?php if ( '' !== (string) $regular[0] ) : ?>
 															<span class="from">
 																<?php

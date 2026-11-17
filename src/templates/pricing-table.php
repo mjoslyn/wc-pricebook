@@ -4,9 +4,10 @@
  *
  * Rendered from {@see \WCPricebook\Shortcodes::render_table()}. Available scope:
  *
- * @var \WCPricebook\Shortcodes $this       Shortcodes instance (exposes engine/config).
- * @var int                     $product_id Current product ID.
- * @var array                   $terms      Product category term objects.
+ * @var \WCPricebook\PriceEngine $engine     Price engine.
+ * @var \WCPricebook\Config      $config     Plugin config.
+ * @var int                      $product_id Current product ID.
+ * @var array                    $terms      Product category term objects.
  *
  * @package WCPricebook
  */
@@ -20,9 +21,6 @@ if ( ! $product ) {
 	echo '<div>' . esc_html__( 'Pricing table unavailable.', 'wc-pricebook' ) . '</div>';
 	return;
 }
-
-$engine = $this->engine;
-$config = $this->config;
 
 /* Build the rows: MSRP first, then every configured tier. */
 $rows = array( 'msrp' => __( 'MSRP', 'wc-pricebook' ) );

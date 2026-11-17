@@ -279,6 +279,9 @@ class Shortcodes {
 		$cats  = wp_get_post_terms( $product_id, 'product_cat', array( 'fields' => 'all' ) );
 		$terms = is_array( $cats ) ? $cats : array();
 
+		$engine = $this->engine;
+		$config = $this->config;
+
 		ob_start();
 		include WC_PRICEBOOK_DIR . 'src/templates/pricing-table.php';
 		return (string) ob_get_clean();

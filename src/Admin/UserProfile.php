@@ -220,26 +220,6 @@ class UserProfile {
 	}
 
 	/**
-	 * Render a multi-select element (posts an array under "<name>[]").
-	 *
-	 * @param string               $name    Field name.
-	 * @param array<string,string> $options Option map (value => label).
-	 * @param array<int,string>    $current Selected values.
-	 * @return void
-	 */
-	private function multiselect( $name, array $options, array $current ) {
-		$id   = preg_replace( '/[^a-z0-9_]/', '_', $name );
-		$size = max( 3, min( 8, count( $options ) ) );
-		?>
-		<select name="<?php echo esc_attr( $name ); ?>[]" id="<?php echo esc_attr( $id ); ?>" multiple="multiple" size="<?php echo esc_attr( (string) $size ); ?>">
-			<?php foreach ( $options as $value => $label ) : ?>
-				<option value="<?php echo esc_attr( (string) $value ); ?>" <?php echo in_array( (string) $value, $current, true ) ? 'selected="selected"' : ''; ?>><?php echo esc_html( $label ); ?></option>
-			<?php endforeach; ?>
-		</select>
-		<?php
-	}
-
-	/**
 	 * Save the profile section.
 	 *
 	 * @param int $user_id User ID being saved.

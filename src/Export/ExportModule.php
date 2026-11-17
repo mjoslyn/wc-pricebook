@@ -193,7 +193,7 @@ class ExportModule {
 		$per_page = max( 1, (int) floor( $target / max( 1, count( $products ) ) ) );
 		$run      = function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'run', true );
 
-		add_option( self::PRODUCTS_OPTION, $products, '', 'no' );
+		add_option( self::PRODUCTS_OPTION, $products, '', false );
 		add_option(
 			self::STATE_OPTION,
 			array(
@@ -206,7 +206,7 @@ class ExportModule {
 				'rows'      => 0,
 			),
 			'',
-			'no'
+			false
 		);
 
 		as_enqueue_async_action( self::BATCH_HOOK, array( 'run' => $run ), 'wc-pricebook' );

@@ -104,8 +104,8 @@ class WooHooks {
 		add_filter( 'woocommerce_variation_is_purchasable', array( $this, 'is_purchasable' ), 99, 2 );
 
 		if ( is_admin() && $this->config->module_enabled( 'admin_price_matrix' ) ) {
-			add_filter( 'manage_product_posts_custom_column', array( $this, 'render_admin_price_column' ), 99, 2 );
-			add_filter( 'woocommerce_admin_product_price_html', '__return_empty_string', 10, 2 );
+			add_action( 'manage_product_posts_custom_column', array( $this, 'render_admin_price_column' ), 99, 2 );
+			add_filter( 'woocommerce_admin_product_price_html', '__return_empty_string' );
 			add_action( 'admin_head', array( $this, 'admin_price_column_style' ) );
 		}
 	}
@@ -268,7 +268,7 @@ class WooHooks {
 		}
 
 		/* translators: %s: formatted lowest bulk price. */
-		return sprintf( esc_html__( 'From %s', 'wc-pricebook' ), wp_kses_post( wc_price( $from ) ) );
+		return sprintf( esc_html__( 'From %s', 'wc-pricebook' ), wp_kses_post( wc_price( (float) $from ) ) );
 	}
 
 	/**
@@ -743,7 +743,7 @@ class WooHooks {
 				printf(
 					'<tr class="pricebook-matrix-break"><td>%s</td><td style="text-align:right">%s</td></tr>',
 					esc_html( $range ),
-					wp_kses_post( wc_price( $break['price'] ) )
+					wp_kses_post( wc_price( (float) $break['price'] ) )
 				);
 			}
 		}

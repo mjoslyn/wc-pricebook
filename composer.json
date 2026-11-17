@@ -9,8 +9,12 @@
         "mpdf/mpdf": "^8.2"
     },
     "require-dev": {
+        "php-stubs/woocommerce-stubs": "^11.3",
+        "php-stubs/wp-cli-stubs": "^2.12",
         "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "phpstan/phpstan": "^2.3",
         "phpunit/phpunit": "^9.6",
+        "szepeviktor/phpstan-wordpress": "^2.0",
         "wp-coding-standards/wpcs": "^3.1",
         "yoast/phpunit-polyfills": "^2.0"
     },
@@ -32,7 +36,9 @@
         "lint:fix": "phpcbf",
         "check": [
             "@lint",
+            "@analyse",
             "@test"
-        ]
+        ],
+        "analyse": "phpstan analyse --memory-limit=1G --no-progress"
     }
 }

@@ -543,9 +543,9 @@ class PriceEngine {
 	 * Resolve the simple effective price WooCommerce should display (lowest of
 	 * regular vs sale), for the current/explicit user.
 	 *
-	 * @param mixed       $price   Incoming price.
-	 * @param \WC_Product $product Product.
-	 * @param int|null    $user_id Optional explicit user.
+	 * @param mixed                                        $price   Incoming price.
+	 * @param \WC_Product|\WCPricebook\Export\ProductProxy $product Product (or the export's ID-only proxy).
+	 * @param int|null                                     $user_id Optional explicit user.
 	 * @return mixed
 	 */
 	public function effective_price( $price, $product, $user_id = null ) {
