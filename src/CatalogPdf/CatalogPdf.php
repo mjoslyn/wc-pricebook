@@ -36,6 +36,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Downloadable PDF price catalog: shortcode plus front-end download endpoint.
+ */
 class CatalogPdf {
 
 	/** Default front-end URL path for the download endpoint (host-overridable). */
@@ -50,15 +53,34 @@ class CatalogPdf {
 	/** Default shortcode tag (a host typically overrides this via filter). */
 	const DEFAULT_SHORTCODE = 'wc_pricebook_catalog';
 
-	/** @var Config */
+	/**
+	 * Plugin config.
+	 *
+	 * @var Config
+	 */
 	private $config;
 
-	/** @var Context */
+	/**
+	 * Viewer context.
+	 *
+	 * @var Context
+	 */
 	private $context;
 
-	/** @var PriceEngine */
+	/**
+	 * Price engine.
+	 *
+	 * @var PriceEngine
+	 */
 	private $engine;
 
+	/**
+	 * Constructor.
+	 *
+	 * @param Config      $config  Plugin config.
+	 * @param Context     $context Viewer context.
+	 * @param PriceEngine $engine  Price engine.
+	 */
 	public function __construct( Config $config, Context $context, PriceEngine $engine ) {
 		$this->config  = $config;
 		$this->context = $context;
@@ -70,8 +92,7 @@ class CatalogPdf {
 	 * feature via the wc_pricebook_catalog_pdf_enabled filter.
 	 */
 	public function register() {
-		/** @var bool $enabled */
-		$enabled = apply_filters( 'wc_pricebook_catalog_pdf_enabled', false );
+		$enabled = (bool) apply_filters( 'wc_pricebook_catalog_pdf_enabled', false );
 		if ( ! $enabled ) {
 			return;
 		}
@@ -144,7 +165,7 @@ class CatalogPdf {
 	}
 
 	/**
-	 * template_redirect handler: stream the catalog when the endpoint is requested.
+	 * Handler for template_redirect: stream the catalog when the endpoint is requested.
 	 *
 	 * The catalog is public and read-only (its content is derived from the current
 	 * viewer's own pricing), so no nonce is required — which also keeps the button
@@ -272,7 +293,7 @@ class CatalogPdf {
 		);
 
 		$mpdf                  = new \Mpdf\Mpdf( $mpdf_config );
-		$mpdf->showImageErrors = false; // Skip (don't fatal on) an unreachable logo image.
+		$mpdf->showImageErrors = false; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- mPDF API. // Skip (don't fatal on) an unreachable logo image.
 		$mpdf->WriteHTML( $html );
 		$mpdf->Output( $filename, \Mpdf\Output\Destination::DOWNLOAD );
 		exit;
@@ -344,9 +365,9 @@ class CatalogPdf {
 	 * @return string
 	 */
 	private function build_html() {
-		$user_id   = $this->context->pricing_user_id();
-		$show_all  = $this->show_full_matrix( $user_id );
-		$columns   = $show_all ? $this->columns() : array( 'msrp' => __( 'MSRP', 'wc-pricebook' ) );
+		$user_id          = $this->context->pricing_user_id();
+		$show_all         = $this->show_full_matrix( $user_id );
+		$columns          = $show_all ? $this->columns() : array( 'msrp' => __( 'MSRP', 'wc-pricebook' ) );
 		$your_price_label = (string) apply_filters( 'wc_pricebook_catalog_pdf_your_price_label', __( 'Your Price', 'wc-pricebook' ) );
 
 		$logo_html = $this->site_logo_html();

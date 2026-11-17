@@ -246,7 +246,7 @@ class Switcher {
 			$resolved   = wc_get_product( $product_id );
 			// Seeded with the stored _price meta rather than null so an externally-set
 			// active price survives — see PriceEngine::stored_active_price().
-			$new_price  = $this->engine->effective_price( $this->engine->stored_active_price( $resolved ), $resolved );
+			$new_price = $this->engine->effective_price( $this->engine->stored_active_price( $resolved ), $resolved );
 			$product->set_price( $new_price );
 			WC()->cart->cart_contents[ $cart_item_key ]['new_price'] = $new_price;
 		}
@@ -409,5 +409,4 @@ class Switcher {
 			);
 		}
 	}
-
 }

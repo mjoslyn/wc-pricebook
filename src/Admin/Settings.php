@@ -221,16 +221,16 @@ class Settings {
 			}
 
 			$out[ $key ] = array(
-				'key'                 => $key,
-				'label'               => sanitize_text_field( $row['label'] ?? ucfirst( $key ) ),
-				'price_meta'          => sanitize_text_field( $row['price_meta'] ?? '' ),
-				'sale_meta'           => sanitize_text_field( $row['sale_meta'] ?? '' ),
-				'multiplier'          => isset( $row['multiplier'] ) && '' !== $row['multiplier'] ? (float) $row['multiplier'] : 1.0,
-				'base_meta'           => sanitize_key( $row['base_meta'] ?? '' ),
-				'fallback_to'           => sanitize_text_field( $row['fallback_to'] ?? 'msrp' ),
-				'override'              => in_array( $row['override'] ?? '', array( 'always', 'when_priced' ), true ) ? $row['override'] : '',
-				'notes'                 => sanitize_textarea_field( $row['notes'] ?? '' ),
-				'pricing_categories'    => $this->sanitize_category_set( $row['pricing_categories'] ?? array() ),
+				'key'                => $key,
+				'label'              => sanitize_text_field( $row['label'] ?? ucfirst( $key ) ),
+				'price_meta'         => sanitize_text_field( $row['price_meta'] ?? '' ),
+				'sale_meta'          => sanitize_text_field( $row['sale_meta'] ?? '' ),
+				'multiplier'         => isset( $row['multiplier'] ) && '' !== $row['multiplier'] ? (float) $row['multiplier'] : 1.0,
+				'base_meta'          => sanitize_key( $row['base_meta'] ?? '' ),
+				'fallback_to'        => sanitize_text_field( $row['fallback_to'] ?? 'msrp' ),
+				'override'           => in_array( $row['override'] ?? '', array( 'always', 'when_priced' ), true ) ? $row['override'] : '',
+				'notes'              => sanitize_textarea_field( $row['notes'] ?? '' ),
+				'pricing_categories' => $this->sanitize_category_set( $row['pricing_categories'] ?? array() ),
 			);
 		}
 
@@ -265,15 +265,15 @@ class Settings {
 			$users       = isset( $row['users'] ) && is_array( $row['users'] ) ? array_values( array_unique( array_filter( array_map( 'absint', $row['users'] ) ) ) ) : array();
 			$match       = isset( $row['match'] ) && 'all' === $row['match'] ? 'all' : 'any';
 			$out[ $key ] = array(
-				'key'             => $key,
-				'label'           => sanitize_text_field( $row['label'] ?? ucfirst( $key ) ),
-				'roles'           => $roles,
-				'exclude_roles'   => $exclude,
-				'users'           => $users,
-				'match'           => $match,
-				'categories'      => $this->sanitize_category_set( $row['categories'] ?? array() ),
-				'hide'            => in_array( $row['hide'] ?? '', array( 'product', 'pricing' ), true ) ? $row['hide'] : '',
-				'notes'           => sanitize_textarea_field( $row['notes'] ?? '' ),
+				'key'           => $key,
+				'label'         => sanitize_text_field( $row['label'] ?? ucfirst( $key ) ),
+				'roles'         => $roles,
+				'exclude_roles' => $exclude,
+				'users'         => $users,
+				'match'         => $match,
+				'categories'    => $this->sanitize_category_set( $row['categories'] ?? array() ),
+				'hide'          => in_array( $row['hide'] ?? '', array( 'product', 'pricing' ), true ) ? $row['hide'] : '',
+				'notes'         => sanitize_textarea_field( $row['notes'] ?? '' ),
 			);
 		}
 
@@ -307,9 +307,12 @@ class Settings {
 	private function parse_ids( $value ) {
 		$ids = is_array( $value ) ? $value : array();
 		$ids = array_map( 'intval', $ids );
-		$ids = array_filter( $ids, static function ( $id ) {
-			return $id > 0;
-		} );
+		$ids = array_filter(
+			$ids,
+			static function ( $id ) {
+				return $id > 0;
+			}
+		);
 		return array_values( array_unique( $ids ) );
 	}
 
@@ -394,15 +397,15 @@ class Settings {
 	 */
 	private function render_modules( $name ) {
 		$modules = array(
-			'switcher'       => array(
+			'switcher'           => array(
 				__( 'Pricing-view switcher', 'wc-pricebook' ),
 				__( 'Adds a manager toolbar control to preview the store as any pricing tier.', 'wc-pricebook' ),
 			),
-			'flowchart'      => array(
+			'flowchart'          => array(
 				__( 'Pricing flowchart', 'wc-pricebook' ),
 				__( 'Publishes the /price-flowchart diagnostic page.', 'wc-pricebook' ),
 			),
-			'product_prices' => array(
+			'product_prices'     => array(
 				__( 'Product tier prices (toolbar)', 'wc-pricebook' ),
 				__( 'Shows a toolbar dropdown of each tier’s price on the current product.', 'wc-pricebook' ),
 			),
@@ -410,7 +413,7 @@ class Settings {
 				__( 'Admin price matrix (Products list)', 'wc-pricebook' ),
 				__( 'Show every tier’s price for each product in the WooCommerce Products list. Turn off if your theme already adds a pricing column.', 'wc-pricebook' ),
 			),
-			'catalog_pdf'    => array(
+			'catalog_pdf'        => array(
 				__( 'Catalog PDF', 'wc-pricebook' ),
 				__( 'Enables the print-ready catalog PDF/CSV download and its shortcodes.', 'wc-pricebook' ),
 			),
@@ -479,8 +482,7 @@ class Settings {
 	 * @return void
 	 */
 	private function render_catalog_pdf_shortcodes() {
-		/** @var bool $enabled */
-		$enabled = apply_filters( 'wc_pricebook_catalog_pdf_enabled', false );
+		$enabled = (bool) apply_filters( 'wc_pricebook_catalog_pdf_enabled', false );
 		if ( ! $enabled ) {
 			return;
 		}
@@ -625,7 +627,7 @@ class Settings {
 				$index = 0;
 				foreach ( $tiers as $tier ) {
 					$this->render_tier_row( $name, (string) $index, is_array( $tier ) ? $tier : array(), $categories, $options );
-					$index++;
+					++$index;
 				}
 				?>
 			</div>
@@ -686,10 +688,10 @@ class Settings {
 	/**
 	 * Render a single tier row.
 	 *
-	 * @param string                 $name       Option name prefix.
-	 * @param string                 $index      Row index (or "__INDEX__" placeholder).
-	 * @param array<string,mixed>    $tier       Tier values.
-	 * @param array<int,\WP_Term>    $categories Product categories for the scope selectors.
+	 * @param string                             $name       Option name prefix.
+	 * @param string                             $index      Row index (or "__INDEX__" placeholder).
+	 * @param array<string,mixed>                $tier       Tier values.
+	 * @param array<int,\WP_Term>                $categories Product categories for the scope selectors.
 	 * @param array<string,array<string,string>> $options Dropdown option maps for base_meta/fallback_to.
 	 * @return void
 	 */
@@ -783,7 +785,7 @@ class Settings {
 				$index = 0;
 				foreach ( $roles as $role ) {
 					$this->render_visibility_role_row( $name, (string) $index, is_array( $role ) ? $role : array(), $categories );
-					$index++;
+					++$index;
 				}
 				?>
 			</div>
@@ -903,11 +905,11 @@ class Settings {
 	 * the options (e.g. a tier that was later removed), it is appended so saving the
 	 * row does not silently change it.
 	 *
-	 * @param string                $field_name Full field name.
-	 * @param string                $label      Field label.
-	 * @param string                $help       Description text.
-	 * @param array<string,string>  $options    Option map (value => label).
-	 * @param string                $current    Stored value.
+	 * @param string               $field_name Full field name.
+	 * @param string               $label      Field label.
+	 * @param string               $help       Description text.
+	 * @param array<string,string> $options    Option map (value => label).
+	 * @param string               $current    Stored value.
 	 * @return void
 	 */
 	private function render_select_field( $field_name, $label, $help, array $options, $current ) {
@@ -969,5 +971,4 @@ class Settings {
 		</fieldset>
 		<?php
 	}
-
 }

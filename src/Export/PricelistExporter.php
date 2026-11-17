@@ -85,7 +85,7 @@ class PricelistExporter {
 	/**
 	 * Write the full pricelist CSV to a file. Returns the number of data rows written.
 	 *
-	 * @param string                       $file File path to write.
+	 * @param string                          $file File path to write.
 	 * @param array{roles?:array<int,string>} $args Optional: limit to these WP roles.
 	 * @return int Data rows written.
 	 * @throws \RuntimeException When the file cannot be opened for writing.
@@ -93,7 +93,7 @@ class PricelistExporter {
 	public function write_csv( $file, array $args = array() ) {
 		$handle = fopen( $file, 'w' );
 		if ( false === $handle ) {
-			throw new \RuntimeException( 'Unable to open export file for writing: ' . $file );
+			throw new \RuntimeException( 'Unable to open export file for writing: ' . $file ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Not rendered as HTML.
 		}
 
 		Csv::put( $handle, self::COLUMNS );
@@ -105,7 +105,7 @@ class PricelistExporter {
 		foreach ( $this->gather_users( $roles ) as $user ) {
 			foreach ( $products as $product ) {
 				Csv::put( $handle, $this->build_row( $user, $product ) );
-				$count++;
+				++$count;
 			}
 		}
 
@@ -116,7 +116,7 @@ class PricelistExporter {
 	/**
 	 * Write the pricelist to a temp file and email it as an attachment.
 	 *
-	 * @param string                       $recipient Recipient email.
+	 * @param string                          $recipient Recipient email.
 	 * @param array{roles?:array<int,string>} $args      Optional export args.
 	 * @return array{file:string,count:int,sent:bool}
 	 * @throws \RuntimeException When the temp file cannot be created/written.
@@ -216,7 +216,7 @@ class PricelistExporter {
 	public function init_csv( $file ) {
 		$handle = fopen( $file, 'w' );
 		if ( false === $handle ) {
-			throw new \RuntimeException( 'Unable to open export file for writing: ' . $file );
+			throw new \RuntimeException( 'Unable to open export file for writing: ' . $file ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Not rendered as HTML.
 		}
 		Csv::put( $handle, self::COLUMNS );
 		fclose( $handle );
@@ -235,13 +235,13 @@ class PricelistExporter {
 	public function append_rows( $file, array $users, array $products ) {
 		$handle = fopen( $file, 'a' );
 		if ( false === $handle ) {
-			throw new \RuntimeException( 'Unable to open export file for appending: ' . $file );
+			throw new \RuntimeException( 'Unable to open export file for appending: ' . $file ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Not rendered as HTML.
 		}
 		$count = 0;
 		foreach ( $users as $user ) {
 			foreach ( $products as $product ) {
 				Csv::put( $handle, $this->build_row( $user, $product ) );
-				$count++;
+				++$count;
 			}
 		}
 		fclose( $handle );
@@ -279,8 +279,8 @@ class PricelistExporter {
 					'sku'  => (string) $product->get_sku(),
 				);
 			}
-			$page++;
-		} while ( count( $batch ) === 500 );
+			++$page;
+		} while ( 500 === count( $batch ) ); // phpcs:ignore Squiz.PHP.DisallowSizeFunctionsInLoops.Found -- $batch changes each pass.
 
 		/**
 		 * Filters the product refs included in the pricelist export.
@@ -327,8 +327,8 @@ class PricelistExporter {
 					'roles'        => isset( $user->roles ) && is_array( $user->roles ) ? array_values( $user->roles ) : array(),
 				);
 			}
-			$page++;
-		} while ( count( $users ) === 500 );
+			++$page;
+		} while ( 500 === count( $users ) ); // phpcs:ignore Squiz.PHP.DisallowSizeFunctionsInLoops.Found -- $users changes each pass.
 	}
 
 	/**
@@ -352,13 +352,13 @@ class PricelistExporter {
 	 * @throws \RuntimeException When a temp file cannot be created.
 	 */
 	private function temp_file() {
-		$dir  = function_exists( 'get_temp_dir' ) ? get_temp_dir() : sys_get_temp_dir() . '/';
+		$dir = function_exists( 'get_temp_dir' ) ? get_temp_dir() : sys_get_temp_dir() . '/';
 		// Random suffix: the name must not be guessable from the time of the run.
 		$name = 'wc-pricebook-pricelist-' . gmdate( 'Ymd-His' ) . '-' . bin2hex( random_bytes( 16 ) ) . '.csv';
 		$file = rtrim( $dir, '/\\' ) . '/' . $name;
 
 		if ( false === @touch( $file ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			throw new \RuntimeException( 'Unable to create export temp file: ' . $file );
+			throw new \RuntimeException( 'Unable to create export temp file: ' . $file ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Not rendered as HTML.
 		}
 		return $file;
 	}

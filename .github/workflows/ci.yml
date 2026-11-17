@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call: # Reused by release.yml as a gate.
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [phpunit, phpcs, phpstan]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          # composer.lock dev deps require PHP 8.4. PHP 7.4 compat is
+          # enforced by PHPCompatibilityWP in phpcs.
+          php-version: '8.4'
+          extensions: mbstring, gd
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: PHPUnit
+        if: matrix.check == 'phpunit'
+        run: composer test
+
+      - name: PHPCS
+        if: matrix.check == 'phpcs'
+        run: composer lint
+
+      - name: PHPStan
+        if: matrix.check == 'phpstan'
+        run: composer analyse

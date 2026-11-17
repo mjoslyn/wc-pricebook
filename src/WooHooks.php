@@ -204,7 +204,7 @@ class WooHooks {
 	 * case a tier badge (default "Dealer Price") is shown.
 	 *
 	 * @param string      $html    Default sale-flash HTML.
-	 * @param \WP_Post     $post    Post.
+	 * @param \WP_Post    $post    Post.
 	 * @param \WC_Product $product Product.
 	 * @return string
 	 */
@@ -318,7 +318,7 @@ class WooHooks {
 		if ( empty( $cart_data['data'] ) || ! is_object( $cart_data['data'] ) ) {
 			return $cart_data;
 		}
-		$new_price             = $cart_data['data']->get_price();
+		$new_price = $cart_data['data']->get_price();
 		$cart_data['data']->set_price( $new_price );
 		$cart_data['new_price'] = $new_price;
 		return $cart_data;
@@ -351,8 +351,8 @@ class WooHooks {
 		// one. apply_bulk_cart_pricing() re-applies this on every recalculation.
 		// Seeded with the stored _price meta rather than null so an externally-set
 		// active price survives the round trip — see PriceEngine::stored_active_price().
-		$qty                       = isset( $values['quantity'] ) ? max( 1, (int) $values['quantity'] ) : 1;
-		$new_price                 = $this->engine->effective_price_qty( $this->engine->stored_active_price( $session_data['data'] ), $session_data['data'], $qty );
+		$qty       = isset( $values['quantity'] ) ? max( 1, (int) $values['quantity'] ) : 1;
+		$new_price = $this->engine->effective_price_qty( $this->engine->stored_active_price( $session_data['data'] ), $session_data['data'], $qty );
 		$session_data['data']->set_price( $new_price );
 		$session_data['new_price'] = $new_price;
 		// Mark this cart-line instance as already priced so get_price() honors the
@@ -461,7 +461,7 @@ class WooHooks {
 		if ( ! $product_id || ! $this->engine->price_hidden( $product_id ) ) {
 			return $html;
 		}
-		return (string) apply_filters( 'woocommerce_empty_price_html', '', $product );
+		return (string) apply_filters( 'woocommerce_empty_price_html', '', $product ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core WooCommerce filter.
 	}
 
 	/**
@@ -521,7 +521,10 @@ class WooHooks {
 		$candidates = array();
 
 		$this->resolving_hidden = true;
-		foreach ( array( 'exclude' => 'IN', 'include' => 'NOT IN' ) as $list => $operator ) {
+		foreach ( array(
+			'exclude' => 'IN',
+			'include' => 'NOT IN',
+		) as $list => $operator ) {
 			if ( empty( $cats[ $list ] ) ) {
 				continue;
 			}
@@ -629,7 +632,7 @@ class WooHooks {
 	}
 
 	/**
-	 * woocommerce_product_is_visible: hidden products are not visible in loops.
+	 * Filter woocommerce_product_is_visible: hidden products are not visible in loops.
 	 *
 	 * @param bool $visible    Current visibility.
 	 * @param int  $product_id Product ID.
@@ -640,7 +643,7 @@ class WooHooks {
 	}
 
 	/**
-	 * woocommerce_variation_is_visible: follows the parent product's visibility.
+	 * Filter woocommerce_variation_is_visible: follows the parent product's visibility.
 	 *
 	 * @param bool $visible      Current visibility.
 	 * @param int  $variation_id Variation ID.
@@ -691,15 +694,15 @@ class WooHooks {
 
 		echo '<table class="pricebook-matrix-table" style="font-size:12px;width:100%;">';
 		foreach ( $rows as $tier_key => $label ) {
-			$regular = $this->engine->price_as_tier( $product_id, $tier_key, false );
-			$sale    = $this->engine->price_as_tier( $product_id, $tier_key, true );
+			$regular       = $this->engine->price_as_tier( $product_id, $tier_key, false );
+			$sale          = $this->engine->price_as_tier( $product_id, $tier_key, true );
 			$regular_price = $regular[0];
 			$sale_price    = $sale[0];
 
 			if ( '' === (string) $regular_price || $regular_price <= 0 ) {
 				continue;
 			}
-			$has_sale = '' !== (string) $sale_price && $sale_price != $regular_price && $sale_price > 0; // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
+			$has_sale = '' !== (string) $sale_price && $sale_price != $regular_price && $sale_price > 0; // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison, Universal.Operators.StrictComparisons.LooseNotEqual
 
 			printf(
 				'<tr><td>%s:</td><td style="text-align:right">%s%s</td></tr>',

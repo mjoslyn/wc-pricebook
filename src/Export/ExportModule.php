@@ -40,7 +40,7 @@ class ExportModule {
 	const CRON_HOOK = 'wc_pricebook_export_cron';
 
 	/**
-	 * admin-post action for the "Send now" button.
+	 * Handle the admin-post action for the "Send now" button.
 	 */
 	const ACTION_NOW = 'wc_pricebook_export_now';
 

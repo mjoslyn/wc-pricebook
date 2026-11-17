@@ -425,19 +425,19 @@ class Flowchart {
 	 */
 	private static function rule_descriptions() {
 		return array(
-			'skip_matrix'       => array(
+			'skip_matrix'      => array(
 				'label' => __( 'Skip matrix', 'wc-pricebook' ),
 				'desc'  => __( 'Skips tier pricing entirely — every customer sees MSRP for this product.', 'wc-pricebook' ),
 			),
-			'no_tier_discount'  => array(
+			'no_tier_discount' => array(
 				'label' => __( 'No tier discount', 'wc-pricebook' ),
 				'desc'  => __( 'Suppresses tier discounts — discount tiers collapse to the plain base price.', 'wc-pricebook' ),
 			),
-			'force_visible'     => array(
+			'force_visible'    => array(
 				'label' => __( 'Force visible', 'wc-pricebook' ),
 				'desc'  => __( 'Keeps the product\'s price visible even when a Hide-Pricing visibility role would otherwise hide it.', 'wc-pricebook' ),
 			),
-			'call_for_price'    => array(
+			'call_for_price'   => array(
 				'label' => __( 'Call for Price', 'wc-pricebook' ),
 				'desc'  => __( 'Forces the price empty ("Call for Price") for every customer on this product.', 'wc-pricebook' ),
 			),
@@ -689,8 +689,8 @@ class Flowchart {
 				// The answer first: what this specific customer pays, and the trail that got
 				// there. Everything below it is the supporting detail.
 				if ( $as_user ) :
-					$base      = (float) get_post_meta( $product_id, $this->config->base_meta()['regular'], true );
-					$u_reg     = $this->engine->price_for_user( $base, $product, $user_id, false );
+					$base  = (float) get_post_meta( $product_id, $this->config->base_meta()['regular'], true );
+					$u_reg = $this->engine->price_for_user( $base, $product, $user_id, false );
 					// What the customer actually pays: the effective (sale-applied) price.
 					// Pass an EMPTY base so the engine derives the active price from the
 					// product (including a storewide/bundle sale). Passing the regular base
@@ -715,8 +715,8 @@ class Flowchart {
 
 					// The headline price is the single-unit price. When quantity moves it, say
 					// so next to the figure rather than letting it read as the whole story.
-					$ladder     = $this->customer_qty_ladder( $base, $product, $product_id, (int) $user_id );
-					$qty1_bulk  = ! empty( $ladder ) && $ladder[0]['is_bulk'];
+					$ladder    = $this->customer_qty_ladder( $base, $product, $product_id, (int) $user_id );
+					$qty1_bulk = ! empty( $ladder ) && $ladder[0]['is_bulk'];
 					?>
 					<section>
 						<div class="answer">
